@@ -54,27 +54,20 @@ function stripHtmlComments() {
 //       https://docs.astro.build/en/reference/configuration-reference/#trailingslash
 
 export default defineConfig({
-  // Force https:// so Astro-generated absolute URLs (prefetch hints, sitemaps,
-  // canonical tags) are never HTTP — even when SITE_URL is set as http://.
-  // VERCEL_URL is injected automatically by Vercel on every deployment and lets
-  // the Font API (which requires an absolute site URL) work even when SITE_URL
-  // is not explicitly configured.
-  site: process.env.SITE_URL?.replace(/^http:\/\//, 'https://')
-    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined),
+  site: 'https://JulianRH15.github.io',
   base: process.env.BASE_PATH || '/',
   trailingSlash: 'never',
   output: 'static',
   compressHTML: true,
-  // 'attribute' scopes component styles via data-astro-* attributes instead of mangled class names,
-  // which is more predictable when targeting elements from global CSS or JavaScript.
+
   scopedStyleStrategy: 'attribute',
+
   integrations: [
     ...(process.env.SITE_URL ? [sitemap()] : []),
     injectRobotsSitemap(),
     stripHtmlComments(),
   ],
-  // Global font downloads via Astro Fonts API — self-hosted at build time,
-  // eliminating Google Fonts CDN requests at runtime.
+
   fonts: [
     {
       provider: fontProviders.google(),
@@ -88,8 +81,7 @@ export default defineConfig({
       weights: [400, 700],
     },
   ],
-  // Global Sharp codec defaults for all processed images.
-  // Per-image `quality` props still override these.
+
   image: {
     remotePatterns: [
       { hostname: 'raw.githubusercontent.com' },
