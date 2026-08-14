@@ -55,7 +55,7 @@ function stripHtmlComments() {
 
 export default defineConfig({
   site: 'https://JulianRH15.github.io',
-  base: process.env.BASE_PATH || '/',
+  base: '/',
   trailingSlash: 'never',
   output: 'static',
   compressHTML: true,
