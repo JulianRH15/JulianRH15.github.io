@@ -1,0 +1,49 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Footer from "@/components/Footer.astro";
+import { withBase } from "@/lib/assetPath";
+---
+
+<Layout
+  title="SQL | Evidencias"
+  description="Evidencias de SQL de Julian Samuel Rodriguez Hernandez."
+>
+  <div class="px-6 lg:px-12 pt-16 pb-20">
+    <div class="max-w-5xl mx-auto">
+
+      <a
+        href={withBase("/evidencias")}
+        class="text-sm font-mono text-site-muted hover:text-white"
+      >
+        ← Volver a Evidencias
+      </a>
+
+      <div class="mt-10">
+        <span
+          class="text-xs font-mono uppercase tracking-[3px]"
+          style="color: var(--color-primary);"
+        >
+          Evidencias
+        </span>
+
+        <h1 class="font-display font-bold text-4xl sm:text-5xl text-white mt-3 mb-5">
+          SQL
+        </h1>
+
+        <p class="text-site-text-muted text-lg max-w-2xl">
+          En este espacio publicaré consultas, ejercicios y trabajos
+          relacionados con SQL.
+        </p>
+      </div>
+
+      <div class="mt-10 p-8 rounded-2xl border border-site-border bg-site-surface/30 text-center">
+        <p class="text-site-muted font-mono">
+          Próximamente — aquí se agregarán las evidencias.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <Footer />
+</Layout>

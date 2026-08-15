@@ -1,0 +1,126 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Footer from "@/components/Footer.astro";
+import { withBase } from "@/lib/assetPath";
+
+const evidences = [
+  {
+    title: "SQL",
+    description:
+      "Consultas, ejercicios y evidencias relacionadas con SQL.",
+    href: "/evidencias/sql",
+    label: "SQL"
+  },
+  {
+    title: "PL/SQL Scripts",
+    description:
+      "Scripts, procedimientos, funciones y ejercicios desarrollados con PL/SQL.",
+    href: "/evidencias/plsql",
+    label: "PL/SQL"
+  },
+  {
+    title: "NoSQL",
+    description:
+      "Ejercicios y evidencias relacionadas con bases de datos NoSQL.",
+    href: "/evidencias/nosql",
+    label: "NoSQL"
+  },
+  {
+    title: "Proyecto",
+    description:
+      "Espacio para documentar el proyecto desarrollado durante el semestre.",
+    href: "/evidencias/proyecto",
+    label: "Proyecto"
+  }
+];
+---
+
+<Layout
+  title="Evidencias | Julian Samuel Rodriguez Hernandez"
+  description="Evidencias académicas de Julian Samuel Rodriguez Hernandez."
+>
+  <div class="px-6 lg:px-12 pt-16 pb-20">
+    <div class="max-w-5xl mx-auto">
+
+      <nav aria-label="Breadcrumb" class="mb-8">
+        <ol class="flex items-center gap-2 text-sm text-site-muted font-mono">
+          <li>
+            <a
+              href={withBase("/")}
+              class="hover:text-white transition-colors"
+            >
+              Inicio
+            </a>
+          </li>
+
+          <li class="text-site-border">/</li>
+
+          <li class="text-electric-cyan">
+            Evidencias
+          </li>
+        </ol>
+      </nav>
+
+      <div class="mb-12">
+        <div class="flex items-center gap-3 mb-3">
+          <div
+            class="h-px w-8"
+            style="background: var(--color-primary);"
+          ></div>
+
+          <span
+            class="text-xs font-mono font-semibold tracking-[3px] uppercase"
+            style="color: var(--color-primary);"
+          >
+            Bases de Datos 2
+          </span>
+        </div>
+
+        <h1 class="font-display font-bold text-4xl sm:text-5xl text-white mb-4">
+          Evidencias
+        </h1>
+
+        <p class="text-site-text-muted text-lg max-w-2xl leading-relaxed">
+          Espacio para reunir los trabajos, ejercicios y proyectos desarrollados
+          durante mi formación.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        {evidences.map((item) => (
+          <a
+            href={withBase(item.href)}
+            class="group p-6 rounded-2xl border border-site-border bg-site-surface/30 hover:bg-site-surface/50 hover:border-electric-blue/40 transition-all duration-300"
+          >
+            <span
+              class="inline-flex px-3 py-1 rounded-md text-xs font-mono font-semibold border mb-5"
+              style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.25);"
+            >
+              {item.label}
+            </span>
+
+            <h2 class="font-display font-bold text-2xl text-white mb-3">
+              {item.title}
+            </h2>
+
+            <p class="text-site-muted leading-relaxed">
+              {item.description}
+            </p>
+
+            <span
+              class="inline-block mt-5 text-sm font-mono"
+              style="color: var(--color-primary);"
+            >
+              Ver evidencias →
+            </span>
+          </a>
+        ))}
+
+      </div>
+
+    </div>
+  </div>
+
+  <Footer />
+</Layout>

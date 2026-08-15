@@ -1,86 +1,148 @@
 {
-  "pageTitle": "About Apex Capital Group",
-  "pageDescription": "Apex Capital Group is a private holding company that acquires, operates, and strategically exits businesses across multiple sectors. We deploy capital with discipline and manage operations with intention.",
+  "pageTitle": "Sobre mí",
+  "pageDescription": "Conoce un poco más sobre Julian Samuel Rodriguez Hernandez, estudiante de Ingeniería de Sistemas interesado en el desarrollo de software, las bases de datos y el aprendizaje mediante proyectos reales.",
 
   "contactBar": {
     "items": [
-      { "label": "IR Email",    "value": "ir@apexcap.example",   "href": "mailto:ir@apexcap.example" },
-      { "label": "Phone",       "value": "(000) 000-0000",         "href": "tel:+10000000000" },
-      { "label": "Location",    "value": "New York, New York",     "href": null }
+      {
+        "label": "Nombre",
+        "value": "Julian Samuel Rodriguez Hernandez",
+        "href": null
+      },
+      {
+        "label": "Formación",
+        "value": "Ingeniería de Sistemas",
+        "href": null
+      },
+      {
+        "label": "Ubicación",
+        "value": "Colombia",
+        "href": null
+      }
     ]
   },
 
   "paragraphs": [
-    "Apex Capital Group was formed to do one thing well: identify businesses with strong fundamentals and underutilized potential, acquire them, and make them perform. We are not a turnaround shop. We are not a strip-and-flip operation. We are operators who happen to own companies.",
-    "Our portfolio spans manufacturing, services, technology, media, and real estate. What these companies have in common is not their sector — it is the situation we found them in: ready for the next chapter, waiting for the right partner to write it.",
-    "We take board seats, we hire and replace leadership when necessary, we optimize costs without destroying culture, and we plan for exits from the day we close. This is not complicated. It is simply disciplined capital allocation paired with operational seriousness. Most people find that combination more rare than it should be."
+    "Soy Julian Samuel Rodriguez Hernandez, estudiante de Ingeniería de Sistemas.",
+    "Me gusta aprender mediante la práctica, desarrollar proyectos y convertir los conocimientos adquiridos durante mi formación en soluciones que realmente funcionen.",
+    "Actualmente estoy fortaleciendo mis conocimientos en desarrollo de software, bases de datos y diferentes herramientas y tecnologías que hacen parte de mi formación profesional."
   ],
 
-  "pillarsHeading": "What Apex Capital Does",
+  "pillarsHeading": "Lo que me interesa",
   "pillars": [
     {
-      "title": "Acquisition & Intake",
-      "desc": "Sourcing, diligence, deal structuring, and portfolio integration across sectors and transaction sizes.",
-      "icon": "building-office"
+      "title": "Desarrollo de Software",
+      "desc": "Crear aplicaciones y soluciones que permitan llevar los conocimientos de programación a proyectos reales.",
+      "icon": "code-bracket"
     },
     {
-      "title": "Operational Efficiency",
-      "desc": "Post-close operational assessment, cost structure optimization, and KPI-driven performance management.",
-      "icon": "chart-bar-square"
+      "title": "Bases de Datos",
+      "desc": "Comprender cómo diseñar, gestionar y aprovechar los datos para construir sistemas eficientes.",
+      "icon": "circle-stack"
     },
     {
-      "title": "Portfolio Disposition",
-      "desc": "Exit strategy development, M&A advisory, buyer identification, and transaction management.",
-      "icon": "arrow-trending-up"
+      "title": "Aprendizaje Práctico",
+      "desc": "Aprender haciendo, experimentando con nuevas tecnologías y enfrentando problemas reales.",
+      "icon": "light-bulb"
     },
     {
-      "title": "Leadership Transition",
-      "desc": "Executive assessment, onboarding, board governance, and stakeholder communication management.",
-      "icon": "user-plus"
+      "title": "Trabajo en Proyectos",
+      "desc": "Aplicar lo aprendido mediante proyectos que permitan desarrollar experiencia y habilidades profesionales.",
+      "icon": "rocket-launch"
     }
   ],
 
   "stats": [
-    { "value": "20+", "label": "Years Experience" },
-    { "value": "12+", "label": "Portfolio Companies" },
-    { "value": "5",   "label": "Active Sectors" },
-    { "value": "LLC", "label": "Apex Capital Group, LLC" }
+    {
+      "value": "Ing.",
+      "label": "Ingeniería de Sistemas"
+    },
+    {
+      "value": "BD2",
+      "label": "Bases de Datos 2"
+    },
+    {
+      "value": "Web",
+      "label": "Desarrollo Web"
+    },
+    {
+      "value": "2026",
+      "label": "Portafolio Profesional"
+    }
   ],
 
   "clientTypes": {
-    "eyebrow": "Who We Work With",
-    "heading": "Built for businesses at an inflection point.",
-    "body": "Our portfolio companies come to us through various paths — founder succession, corporate divestitures, distressed situations, and competitive acquisitions. What they share is a need for the right owner at the right time.",
+    "eyebrow": "Actualmente aprendiendo",
+    "heading": "Construyendo mi perfil profesional.",
+    "body": "Este portafolio reúne parte de mi proceso de aprendizaje, proyectos y evidencias desarrolladas durante mi formación como estudiante de Ingeniería de Sistemas.",
     "items": [
-      { "label": "Family-Owned Businesses" },
-      { "label": "Corporate Divestitures" },
-      { "label": "Management Buyouts" },
-      { "label": "Distressed & Turnaround" },
-      { "label": "Founder Succession" },
-      { "label": "Secondary Buyouts" }
+      {
+        "label": "Desarrollo de Software"
+      },
+      {
+        "label": "Bases de Datos"
+      },
+      {
+        "label": "Programación"
+      },
+      {
+        "label": "Desarrollo Web"
+      },
+      {
+        "label": "Trabajo en Proyectos"
+      },
+      {
+        "label": "Aprendizaje Continuo"
+      }
     ]
   },
 
   "capabilitiesShowcase": {
-    "eyebrow": "Full Capabilities",
-    "heading": "What We Do.",
-    "subheading": "A cross-section of the disciplines we apply across every company in our portfolio. Click any card to read more."
+    "eyebrow": "Mi formación",
+    "heading": "Lo que estoy construyendo.",
+    "subheading": "Un espacio para mostrar proyectos, conocimientos y evidencias desarrolladas durante mi formación profesional."
   },
 
-  "techStackHeading": "Sectors we know well",
+  "techStackHeading": "Tecnologías y áreas de aprendizaje",
   "techStackGroups": [
-    { "cat": "Manufacturing",   "items": ["Industrial Supply", "Food Processing", "Contract Manufacturing", "Light Assembly", "Co-Manufacturing", "Specialty Chemicals", "Metal Fabrication", "Plastics & Composites"] },
-    { "cat": "Services",        "items": ["Healthcare Staffing", "IT Services", "Field Services", "Business Process Outsourcing", "Environmental Services", "Facilities Management", "Professional Services"] },
-    { "cat": "Technology",      "items": ["SaaS", "Managed Services", "Enterprise Software", "IoT & Connected Devices", "Data & Analytics", "Digital Transformation", "Platform Businesses"] },
-    { "cat": "Distribution",    "items": ["Industrial Distribution", "Food & Beverage", "Last-Mile Logistics", "Third-Party Logistics", "Cold Chain", "E-commerce Fulfillment"] },
-    { "cat": "Real Estate",     "items": ["Light Industrial", "Flex Commercial", "Net Lease", "Sale-Leaseback", "Owner-User", "Development Land"] },
-    { "cat": "Media",           "items": ["Regional Publishing", "Digital Media", "Events & Conferences", "Trade Publications", "Newsletters", "Broadcast"] }
+    {
+      "cat": "Desarrollo Web",
+      "items": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "React"
+      ]
+    },
+    {
+      "cat": "Backend",
+      "items": [
+        "Java",
+        "Spring Boot"
+      ]
+    },
+    {
+      "cat": "Bases de Datos",
+      "items": [
+        "SQL",
+        "PL/SQL",
+        "NoSQL"
+      ]
+    },
+    {
+      "cat": "Herramientas",
+      "items": [
+        "Git",
+        "GitHub",
+        "GitHub Pages"
+      ]
+    }
   ],
 
   "cta": {
-    "heading": "Ready to discuss your company or investment thesis?",
-    "body": "We review all serious inquiries and respond to those that fit our mandate. If it fits, we move quickly.",
-    "label": "Contact Investor Relations →",
-    "href": "/contact"
+    "heading": "¿Quieres conocer mi trabajo?",
+    "body": "Explora mis proyectos y las evidencias que iré construyendo durante mi formación.",
+    "label": "Ver mis proyectos →",
+    "href": "/projects"
   }
 }

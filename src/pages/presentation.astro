@@ -1,0 +1,277 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Footer from "@/components/Footer.astro";
+import { withBase } from "@/lib/assetPath";
+---
+
+<Layout
+  title="Presentación | Julian Samuel Rodriguez Hernandez"
+  description="Presentación personal de Julian Samuel Rodriguez Hernandez, estudiante de Ingeniería de Sistemas."
+>
+  <div class="px-6 lg:px-12 pt-16 pb-20">
+    <div class="max-w-5xl mx-auto">
+
+      <!-- Breadcrumb -->
+      <nav aria-label="Breadcrumb" class="mb-8">
+        <ol class="flex items-center gap-2 text-sm text-site-muted font-mono">
+          <li>
+            <a
+              href={withBase("/")}
+              class="hover:text-white transition-colors"
+            >
+              Inicio
+            </a>
+          </li>
+          <li class="text-site-border">/</li>
+          <li class="text-electric-cyan">Presentación</li>
+        </ol>
+      </nav>
+
+      <!-- Header -->
+      <div class="mb-12">
+        <div class="flex items-center gap-3 mb-3">
+          <div
+            class="h-px w-8"
+            style="background: var(--color-primary);"
+          ></div>
+
+          <span
+            class="text-xs font-mono font-semibold tracking-[3px] uppercase"
+            style="color: var(--color-primary);"
+          >
+            Portafolio profesional
+          </span>
+        </div>
+
+        <h1 class="font-display font-bold text-4xl sm:text-5xl text-white mb-4">
+          Presentación
+        </h1>
+
+        <p class="text-site-text-muted text-lg max-w-2xl leading-relaxed">
+          Un espacio para conocerme un poco más allá de mis proyectos y
+          trabajos académicos.
+        </p>
+      </div>
+
+      <!-- Presentation -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+
+        <!-- Avatar -->
+        <div
+          class="rounded-2xl border border-site-border bg-site-surface/30 p-6 flex flex-col items-center justify-center min-h-[320px]"
+        >
+          <!--
+            Cuando tengas tu foto, puedes colocarla en:
+            public/images/avatar.jpg
+
+            y reemplazar este bloque por:
+
+            <img
+              src={withBase("/images/avatar.jpg")}
+              alt="Julian Samuel Rodriguez Hernandez"
+              class="w-48 h-48 rounded-full object-cover border-2 border-site-border"
+            />
+          -->
+
+          <div
+            class="w-40 h-40 rounded-full flex items-center justify-center border border-site-border bg-site-surface/60"
+          >
+            <span class="font-display font-bold text-5xl text-white">
+              J
+            </span>
+          </div>
+
+          <h2 class="font-display font-bold text-xl text-white mt-6 text-center">
+            Julian Samuel Rodriguez Hernandez
+          </h2>
+
+          <p class="text-sm text-site-muted font-mono mt-2 text-center">
+            Estudiante de Ingeniería de Sistemas
+          </p>
+        </div>
+
+        <!-- Video -->
+        <div class="lg:col-span-2">
+          <div
+            class="rounded-2xl border border-site-border bg-site-surface/30 overflow-hidden"
+          >
+            <div class="aspect-video bg-black/30 flex items-center justify-center">
+
+              <!--
+                Aquí irá tu video de presentación.
+
+                Si lo subes a YouTube, reemplaza este bloque por:
+
+                <iframe
+                  class="w-full h-full"
+                  src="URL_DEL_VIDEO"
+                  title="Video de presentación de Julian Rodriguez"
+                  allowfullscreen
+                ></iframe>
+              -->
+
+              <div class="text-center px-6">
+                <div
+                  class="w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center border border-site-border"
+                >
+                  <svg
+                    class="w-7 h-7"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    style="color: var(--color-primary);"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.5"
+                      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.868v4.264a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.5"
+                      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+
+                <h3 class="font-display font-bold text-xl text-white mb-2">
+                  Video de presentación
+                </h3>
+
+                <p class="text-sm text-site-muted max-w-md mx-auto">
+                  Próximamente podrás conocerme a través de mi video de
+                  presentación.
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- About me -->
+      <section class="mb-16">
+        <div class="flex items-center gap-3 mb-3">
+          <div
+            class="h-px w-8"
+            style="background: var(--color-primary);"
+          ></div>
+
+          <span
+            class="text-xs font-mono font-semibold tracking-[3px] uppercase"
+            style="color: var(--color-primary);"
+          >
+            Sobre mí
+          </span>
+        </div>
+
+        <h2 class="font-display font-bold text-3xl text-white mb-6">
+          Conóceme un poco más.
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <div
+            class="p-6 rounded-2xl border border-site-border bg-site-surface/30"
+          >
+            <span class="text-xs font-mono uppercase tracking-widest text-site-muted">
+              ¿Cómo me gusta que me llamen?
+            </span>
+
+            <p class="text-white text-lg mt-3">
+              Julian
+            </p>
+          </div>
+
+          <div
+            class="p-6 rounded-2xl border border-site-border bg-site-surface/30"
+          >
+            <span class="text-xs font-mono uppercase tracking-widest text-site-muted">
+              Formación
+            </span>
+
+            <p class="text-white text-lg mt-3">
+              Ingeniería de Sistemas
+            </p>
+          </div>
+
+          <div
+            class="p-6 rounded-2xl border border-site-border bg-site-surface/30 md:col-span-2"
+          >
+            <span class="text-xs font-mono uppercase tracking-widest text-site-muted">
+              Algo sobre mí
+            </span>
+
+            <p class="text-site-text-muted text-lg leading-relaxed mt-3">
+              Soy estudiante de Ingeniería de Sistemas y me interesa seguir
+              aprendiendo mediante proyectos y experiencias que me permitan
+              convertir los conocimientos adquiridos en soluciones reales.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Bases de Datos 2 -->
+      <section class="mb-16">
+        <div
+          class="p-8 rounded-2xl border border-electric-blue/20 bg-site-surface/40"
+        >
+          <div class="flex items-center gap-3 mb-4">
+            <div
+              class="h-px w-8"
+              style="background: var(--color-primary);"
+            ></div>
+
+            <span
+              class="text-xs font-mono font-semibold tracking-[3px] uppercase"
+              style="color: var(--color-primary);"
+            >
+              Bases de Datos 2
+            </span>
+          </div>
+
+          <h2 class="font-display font-bold text-2xl sm:text-3xl text-white mb-4">
+            ¿Por qué esta materia es importante para mi vida profesional?
+          </h2>
+
+          <p class="text-site-text-muted text-lg leading-relaxed">
+            Bases de Datos 2 me permitirá fortalecer mis conocimientos sobre
+            el manejo y aprovechamiento de los datos, una habilidad fundamental
+            para desarrollar sistemas de información eficientes y tomar
+            decisiones basadas en información.
+          </p>
+        </div>
+      </section>
+
+      <!-- Semester goal -->
+      <section>
+        <div class="text-center max-w-3xl mx-auto">
+          <span
+            class="text-xs font-mono font-semibold tracking-[3px] uppercase"
+            style="color: var(--color-primary);"
+          >
+            Mi objetivo
+          </span>
+
+          <blockquote
+            class="font-display font-bold text-3xl sm:text-4xl text-white mt-5 leading-tight"
+          >
+            “Este semestre quiero demostrar que puedo convertir lo que aprendo
+            en resultados y proyectos reales.”
+          </blockquote>
+
+          <p class="text-site-muted mt-6">
+            Eres lo que haces, no lo que dices que harás.
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <Footer />
+</Layout>
