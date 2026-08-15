@@ -1,23 +1,94 @@
 {
-  "name": "Julian Samuel Rodriguez Hernandez",
-  "legalName": "Julian Samuel Rodriguez Hernandez",
-  "url": "https://JulianRH15.github.io",
-  "email": "",
-  "phone": "",
-  "phoneDisplay": "",
-  "description": "Portafolio profesional de Julian Samuel Rodriguez Hernandez, estudiante de Ingeniería de Sistemas. Un espacio para presentar proyectos, aprendizajes y evidencias de su formación profesional.",
-  "web3formsKey": "",
-  "twitter": "",
-  "founderName": "Julian Samuel Rodriguez Hernandez",
-  "addressLocality": "",
-  "addressRegion": "",
-  "logoText": "JULIAN",
-  "logoShort": "J",
-  "sameAs": [],
-  "serviceTypes": [
-    "Desarrollo de Software",
-    "Desarrollo Web",
-    "Bases de Datos",
-    "Programación"
+  "welcomeText": "Julian Samuel Rodriguez Hernandez",
+  "ctaText": "Ver mi trabajo",
+  "navItems": [
+    {
+      "label": "Inicio",
+      "href": "/",
+      "iconKey": "home"
+    },
+    {
+      "label": "Sobre mí",
+      "href": "/about",
+      "iconKey": "user"
+    },
+    {
+      "label": "Proyectos",
+      "href": "/projects",
+      "iconKey": "monitor"
+    },
+    {
+      "label": "Presentación",
+      "href": "/presentation",
+      "iconKey": "user"
+    },
+    {
+      "label": "Evidencias",
+      "href": "/evidencias",
+      "iconKey": "book",
+      "children": [
+        {
+          "label": "SQL",
+          "href": "/evidencias/sql",
+          "iconKey": "terminal"
+        },
+        {
+          "label": "PL/SQL",
+          "href": "/evidencias/plsql",
+          "iconKey": "terminal"
+        },
+        {
+          "label": "NoSQL",
+          "href": "/evidencias/nosql",
+          "iconKey": "database"
+        },
+        {
+          "label": "Proyecto",
+          "href": "/evidencias/proyecto",
+          "iconKey": "rocket"
+        }
+      ]
+    },
+    {
+      "label": "Contacto",
+      "href": "/contact",
+      "iconKey": "mail"
+    }
+  ],
+  "footerTagline": "Portafolio profesional — Ingeniería de Sistemas",
+  "footerLinks": {
+    "Portafolio": [
+      {
+        "label": "Sobre mí",
+        "href": "/about"
+      },
+      {
+        "label": "Proyectos",
+        "href": "/projects"
+      },
+      {
+        "label": "Presentación",
+        "href": "/presentation"
+      },
+      {
+        "label": "Evidencias",
+        "href": "/evidencias"
+      }
+    ],
+    "Contacto": [
+      {
+        "label": "Contacto",
+        "href": "/contact"
+      }
+    ]
+  },
+  "sidebarSocialLabel": "Redes",
+  "sidebarOtherSitesLabel": "Otros sitios",
+  "otherSites": [
+    {
+      "label": "GitHub",
+      "href": "https://github.com/JulianRH15",
+      "iconKey": "github"
+    }
   ]
 }
