@@ -5,19 +5,21 @@
   "email": "",
   "phone": "",
   "phoneDisplay": "",
-  "description": "Portafolio profesional de Julian Samuel Rodriguez Hernandez, estudiante de Ingeniería de Sistemas. Un espacio para presentar proyectos, aprendizajes y evidencias de su formación profesional.",
+  "description": "Portafolio profesional de Julian Samuel Rodriguez Hernandez, estudiante de Ingeniería de Sistemas interesado en el desarrollo de software, bases de datos y aprendizaje mediante proyectos reales.",
   "web3formsKey": "",
   "twitter": "",
   "founderName": "Julian Samuel Rodriguez Hernandez",
-  "addressLocality": "",
+  "addressLocality": "Colombia",
   "addressRegion": "",
   "logoText": "JULIAN",
   "logoShort": "J",
-  "sameAs": [],
+  "sameAs": [
+    "https://github.com/JulianRH15"
+  ],
   "serviceTypes": [
     "Desarrollo de Software",
-    "Desarrollo Web",
     "Bases de Datos",
+    "Desarrollo Web",
     "Programación"
   ]
 }

@@ -1,32 +1,41 @@
 {
-  "pageTitle": "Contact",
-  "pageDescription": "Contact Apex Capital Group regarding investment inquiries, portfolio matters, or institutional partnership opportunities.",
-  "heading": "Get in Touch.",
-  "subHeading": "Direct inquiries are reviewed by the relevant team and responded to within one business day.",
+  "pageTitle": "Contacto",
+  "pageDescription": "Ponte en contacto con Julian Samuel Rodriguez Hernandez para conocer más sobre su formación, proyectos e intereses en Ingeniería de Sistemas.",
+  "heading": "Hablemos.",
+  "subHeading": "Este espacio está pensado para conocer más sobre mi trabajo, proyectos y proceso de formación profesional.",
   "contactMethods": [
     {
-      "iconKey": "phone",
-      "label": "Direct Line",
-      "note": "Mon–Fri, 8am–6pm"
+      "iconKey": "envelope",
+      "label": "Correo electrónico",
+      "note": "Disponible próximamente"
     },
     {
-      "iconKey": "envelope",
-      "label": "Investor Relations",
-      "note": "Response within one business day"
+      "iconKey": "user",
+      "label": "Perfil académico",
+      "note": "Estudiante de Ingeniería de Sistemas"
     }
   ],
   "form": {
-    "heading": "Send a Message",
+    "heading": "Envíame un mensaje",
     "fields": {
-      "name": { "label": "Name", "placeholder": "Your name or organization" },
-      "email": { "label": "Email", "placeholder": "you@organization.example" },
-      "message": { "label": "Message", "placeholder": "Describe your inquiry. Include relevant context — deal size, sector, timeline — as applicable." }
+      "name": {
+        "label": "Nombre",
+        "placeholder": "Tu nombre"
+      },
+      "email": {
+        "label": "Correo",
+        "placeholder": "tu@correo.com"
+      },
+      "message": {
+        "label": "Mensaje",
+        "placeholder": "Escribe tu mensaje..."
+      }
     },
-    "submitLabel": "Send Message",
-    "sendingLabel": "Sending…",
-    "confirmationText": "You will receive an email confirmation of receipt.",
-    "successMessage": "Message received. We will be in touch shortly.",
-    "errorFallback": "Something went wrong. Please try again.",
-    "networkError": "Network error. Check your connection and try again."
+    "submitLabel": "Enviar mensaje",
+    "sendingLabel": "Enviando…",
+    "confirmationText": "Tu mensaje ha sido enviado.",
+    "successMessage": "Mensaje recibido. Gracias por contactarme.",
+    "errorFallback": "Ocurrió un error. Inténtalo nuevamente.",
+    "networkError": "Error de conexión. Revisa tu conexión e inténtalo nuevamente."
   }
 }

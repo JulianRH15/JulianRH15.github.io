@@ -1,28 +1,37 @@
 {
-  "sectionLabel": "Client Access",
-  "heading": "Partner",
-  "headingAccent": "Portal",
+  "sectionLabel": "Mi perfil",
+  "heading": "Mi",
+  "headingAccent": "Portafolio",
   "personalSiteCard": {
-    "label": "Secure Access",
-    "displayName": "client.apexcap.example",
-    "description": "Authorized clients and business partners access portfolio summaries, asset documentation, billing statements, and payment records through the secure client portal.",
-    "visitLabel": "Log in to Portal"
+    "label": "Perfil profesional",
+    "displayName": "Julian Samuel Rodriguez Hernandez",
+    "description": "Estudiante de Ingeniería de Sistemas interesado en el desarrollo de software, las bases de datos y el aprendizaje mediante proyectos reales.",
+    "visitLabel": "Conocer más sobre mí"
   },
   "quickStats": {
-    "label": "Portal Overview",
+    "label": "Información",
     "items": [
-      { "key": "Asset Modules", "valueKey": "yearsExperience", "suffix": "" },
-      { "key": "Billing Cycles", "value": "Active" },
-      { "key": "Active Sectors", "value": "5" }
+      {
+        "key": "Formación",
+        "value": "Ingeniería de Sistemas"
+      },
+      {
+        "key": "Área de interés",
+        "value": "Software"
+      },
+      {
+        "key": "Enfoque",
+        "value": "Bases de Datos"
+      }
     ]
   },
   "infoLabels": {
-    "role": "Account Type",
-    "location": "Primary Jurisdiction",
-    "experience": "Relationship Status",
-    "experienceSuffix": " years on platform",
-    "education": "Entity Classification",
-    "blog": "Resource Library",
-    "contact": "Support Portal"
+    "role": "Formación",
+    "location": "Ubicación",
+    "experience": "Intereses",
+    "experienceSuffix": "",
+    "education": "Área académica",
+    "blog": "Portafolio",
+    "contact": "Contacto"
   }
 }

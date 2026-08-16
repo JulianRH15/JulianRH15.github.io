@@ -1,28 +1,61 @@
 {
-  "sectionLabel": "Quick Contact",
-  "heading": "What are we discussing?",
-  "blurb": "Tell us in a few seconds. Select the topic below, provide your contact information, and we will follow up appropriately.",
-  "stepLabels": ["Select topic", "Your info"],
+  "sectionLabel": "Contacto rápido",
+  "heading": "¿Qué quieres conocer?",
+  "blurb": "Selecciona un tema para orientar tu mensaje y conocer mejor mi perfil, formación o proyectos.",
+  "stepLabels": [
+    "Selecciona un tema",
+    "Tus datos"
+  ],
   "services": [
-    { "label": "Acquisition",   "subLabel": "Deal sourcing & intake",      "serviceValue": "Acquisition Inquiry",     "iconKey": "search"     },
-    { "label": "Investor",      "subLabel": "LP & investor relations",      "serviceValue": "Investor Relations",      "iconKey": "chart"      },
-    { "label": "Operations",    "subLabel": "Portfolio company support",    "serviceValue": "Portfolio Operations",    "iconKey": "settings"   },
-    { "label": "Leadership",    "subLabel": "Management & transition",      "serviceValue": "Leadership Transition",   "iconKey": "person"     },
-    { "label": "Exit Planning", "subLabel": "Disposition & sale",          "serviceValue": "Portfolio Disposition",   "iconKey": "lightbulb2" },
-    { "label": "Other",         "subLabel": "General inquiry",              "serviceValue": "General Inquiry",         "iconKey": "list"       }
+    {
+      "label": "Proyectos",
+      "subLabel": "Trabajos y proyectos realizados",
+      "serviceValue": "Proyectos",
+      "iconKey": "search"
+    },
+    {
+      "label": "Bases de Datos",
+      "subLabel": "SQL, PL/SQL y NoSQL",
+      "serviceValue": "Bases de Datos",
+      "iconKey": "chart"
+    },
+    {
+      "label": "Desarrollo Web",
+      "subLabel": "Tecnologías y proyectos web",
+      "serviceValue": "Desarrollo Web",
+      "iconKey": "settings"
+    },
+    {
+      "label": "Formación",
+      "subLabel": "Ingeniería de Sistemas",
+      "serviceValue": "Formación Académica",
+      "iconKey": "person"
+    },
+    {
+      "label": "Colaboración",
+      "subLabel": "Ideas y proyectos",
+      "serviceValue": "Colaboración",
+      "iconKey": "lightbulb2"
+    },
+    {
+      "label": "Otro",
+      "subLabel": "Consulta general",
+      "serviceValue": "Consulta General",
+      "iconKey": "list"
+    }
   ],
   "formLabels": {
-    "name": "Your Name",
-    "email": "Email",
-    "namePlaceholder": "Name or Company",
-    "emailPlaceholder": "your_email@company.example"
+    "name": "Tu nombre",
+    "email": "Correo electrónico",
+    "namePlaceholder": "Tu nombre",
+    "emailPlaceholder": "tu@correo.com"
   },
   "buttons": {
-    "next": "Next",
-    "back": "Back",
-    "submit": "Send It"
+    "next": "Siguiente",
+    "back": "Atrás",
+    "submit": "Enviar"
   },
-  "footerNote": "Expect a confirmation and a response within one business day.",
-  "successTitle": "Received.",
-  "successMessage": "Expect a response from our team to the email you provided."
+  "footerNote": "Gracias por visitar mi portafolio.",
+  "successTitle": "¡Recibido!",
+  "successMessage": "Gracias por tu mensaje. Me pondré en contacto contigo cuando sea posible."
 }
