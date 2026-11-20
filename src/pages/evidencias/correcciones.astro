@@ -1,0 +1,467 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Footer from "@/components/Footer.astro";
+import SectionHeading from "@/components/evidencias/SectionHeading.astro";
+import CodeBlock from "@/components/evidencias/CodeBlock.astro";
+import { withBase } from "@/lib/assetPath";
+
+const propertiesAntes = `
+# application.properties (como quedó en el proyecto, contraseñas ocultas aquí)
+server.port=\${PORT:8080}
+spring.datasource.url=\${DB_URL:jdbc:mysql://127.0.0.1:3307/bountyline}
+spring.datasource.username=\${DB_USER:bountyline_app}
+spring.datasource.password=\${DB_PASSWORD:********}
+bountyline.jwt.secreto=\${JWT_SECRETO:********}
+bountyline.jwt.horas=\${JWT_HORAS:8}
+`;
+
+const propertiesDespues = `
+# application.properties corregido: los secretos no tienen valor por defecto
+server.port=\${PORT:8080}
+spring.datasource.url=\${DB_URL}
+spring.datasource.username=\${DB_USER}
+spring.datasource.password=\${DB_PASSWORD}
+bountyline.jwt.secreto=\${JWT_SECRETO}
+bountyline.jwt.horas=\${JWT_HORAS:8}
+`;
+
+const variables = `
+# En PowerShell, antes de arrancar la API
+$env:DB_URL = "jdbc:mysql://127.0.0.1:3307/bountyline"
+$env:DB_USER = "bountyline_app"
+$env:DB_PASSWORD = "la-contraseña-real"
+$env:JWT_SECRETO = "una-clave-larga-de-minimo-32-caracteres"
+.\\mvnw spring-boot:run
+`;
+
+const javaValidacion = `
+// En el servicio de Java: revisar los datos antes de llamar a MySQL
+public void publicarMision(NuevaMision datos) {
+    if (datos.monto() == null || datos.monto().signum() <= 0) {
+        throw new IllegalArgumentException("El monto debe ser mayor que cero.");
+    }
+    if (datos.titulo() == null || datos.titulo().isBlank()) {
+        throw new IllegalArgumentException("La misión necesita un título.");
+    }
+    // Lo que tiene que ver con plata sigue en el procedimiento
+    misionRepository.publicar(datos);
+}
+`;
+
+const reparto = [
+  { capa: "Frontend (Angular)", que: "Revisar el formulario antes de enviarlo: campos vacíos, montos negativos, correos mal escritos.", porque: "El usuario ve el error al instante y no se hace una petición que va a fallar." },
+  { capa: "Backend (Spring Boot)", que: "Las reglas del flujo: quién puede hacer qué, validar los datos que llegan, decidir qué procedimiento llamar.", porque: "Java se prueba más fácil con pruebas unitarias y no depende de un motor de base de datos." },
+  { capa: "Base de datos (MySQL)", que: "Lo que nunca puede quedar a medias o con datos malos: retener, pagar y devolver créditos, llaves, CHECK y triggers de saldo.", porque: "Aunque alguien se salte el backend, la base no deja guardar un saldo negativo." }
+];
+
+const hechos = [
+  { nombre: "fact_mision", grano: "Una fila por misión", guarda: "monto, estado, cantidad de postulaciones (con COUNT) y días hasta el cierre" },
+  { nombre: "fact_movimiento", grano: "Una fila por movimiento de billetera", guarda: "tipo de movimiento (recarga, retención, pago, cobro, reembolso) y monto" },
+  { nombre: "fact_actividad", grano: "Una fila por evento de la bitácora", guarda: "tipo de evento: inicio de sesión, búsqueda o vista" }
+];
+
+const dimensiones = [
+  { nombre: "dim_tiempo", texto: "Las fechas. Su llave es un número con forma AAAAMMDD, por ejemplo 20261119." },
+  { nombre: "dim_zona", texto: "Las zonas del juego con su nombre y su nivel de peligro." },
+  { nombre: "dim_especialidad", texto: "Los tipos de trabajo: protección, escolta, recuperación de bienes y los demás." },
+  { nombre: "dim_cazarrecompensas", texto: "Los cazarrecompensas con su reputación. La zona base va como texto y no como llave." }
+];
+
+const pasos = [
+  { letra: "E", nombre: "Extraer", texto: "Copiar los datos de MySQL (misiones, movimientos, cuentas) y de la bitácora de MongoDB a unas tablas de paso, llamadas staging (stg_mision, stg_movimiento, stg_bitacora, stg_cuenta)." },
+  { letra: "T", nombre: "Transformar", texto: "Limpiar y acomodar esos datos: pasar fechas de UTC a hora de Bogotá, cambiar los vacíos por un valor fijo y contar las postulaciones de cada misión." },
+  { letra: "C", nombre: "Cargar", texto: "Llenar primero las dimensiones y después los hechos, con un procedimiento llamado sp_etl_transformar." }
+];
+
+const ajustes = [
+  { titulo: "La hora de la bitácora", texto: "La bitácora guarda la hora en UTC, que va 5 horas adelante de Colombia. Si no se restan esas 5 horas, un evento de la madrugada cae en un día que no existe en dim_tiempo y se pierde al unir." },
+  { titulo: "Tablas de paso vacías", texto: "Si una tabla de staging no tiene filas, MIN devuelve NULL y toda la cuenta de la fecha inicial queda en NULL. Con COALESCE se pone la fecha de hoy en ese caso y la carga no se cae." },
+  { titulo: "Cazarrecompensas sin cuenta", texto: "Al unir con stg_cuenta hay que usar LEFT JOIN. Con un JOIN normal, un cazarrecompensas sin cuenta desaparecería de la dimensión." }
+];
+
+const sinAsignar = `
+-- Una fila especial para las misiones que nadie ha tomado
+INSERT INTO dim_cazarrecompensas
+VALUES (-1, 'Sin asignar', NULL, NULL, 'SIN_DATOS');
+
+-- Al cargar fact_mision, el NULL se cambia por -1
+COALESCE(m.id_cazarrecompensas, -1)
+`;
+
+const fechaInicial = `
+SELECT DATE(LEAST(
+  COALESCE((SELECT MIN(fecha_publicacion) FROM stg_mision), CURDATE()),
+  COALESCE((SELECT MIN(fecha) FROM stg_movimiento), CURDATE()),
+  COALESCE((SELECT MIN(fecha) - INTERVAL 5 HOUR FROM stg_bitacora), CURDATE())
+)) AS f;
+`;
+
+const validacion = `
+-- 1. Ninguna misión puede quedar sin zona (debe dar 0)
+SELECT COUNT(*)
+  FROM fact_mision m
+  LEFT JOIN dim_zona z ON z.id_zona = m.id_zona
+ WHERE z.id_zona IS NULL;
+
+-- 2. Los pagos tienen que sumar lo mismo en el DW y en MySQL
+SELECT SUM(monto) FROM fact_movimiento WHERE tipo = 'PAGO';
+SELECT SUM(monto) FROM bountyline.movimiento WHERE tipo = 'PAGO';
+`;
+---
+
+<Layout
+  title="Correcciones proyecto | Evidencias"
+  description="Correcciones que hicieron los profesores al proyecto BountyLine, explicadas de forma sencilla."
+>
+  <div class="px-6 lg:px-12 pt-16 pb-20">
+    <div class="max-w-5xl mx-auto">
+
+      <a
+        href={withBase("/evidencias")}
+        class="text-sm font-mono text-site-muted hover:text-white"
+      >
+        ← Volver a Evidencias
+      </a>
+
+      <div class="mt-10 mb-14">
+        <span
+          class="text-xs font-mono uppercase tracking-[3px]"
+          style="color: var(--color-primary);"
+        >
+          Evidencias · BountyLine
+        </span>
+
+        <h1 class="font-display font-bold text-4xl sm:text-5xl text-white mt-3 mb-5">
+          Correcciones proyecto
+        </h1>
+
+        <p class="text-site-text-muted text-lg max-w-3xl leading-relaxed">
+          En la revisión del proyecto los profesores señalaron tres cosas: los
+          símbolos $ del archivo de configuración del backend, que casi toda la
+          lógica del negocio esté en un solo lado y que la propuesta de ETL
+          necesitaba explicarse mejor. Aquí va cada una con lo que significa y
+          cómo se arregla.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">
+        {[
+          { id: "propiedades", n: "01", t: "Los $ del application.properties" },
+          { id: "logica", n: "02", t: "Toda la lógica en un solo lado" },
+          { id: "etl", n: "03", t: "La propuesta de ETL" }
+        ].map((c) => (
+          <a
+            href={`#${c.id}`}
+            class="group p-5 rounded-xl border border-site-border/60 bg-site-surface/20 hover:bg-site-surface/40 hover:border-electric-blue/40 transition-all duration-300"
+          >
+            <p class="font-mono text-sm font-semibold" style="color: var(--color-primary);">{c.n}</p>
+            <p class="font-display font-bold text-sm text-white uppercase tracking-wide mt-2">{c.t}</p>
+          </a>
+        ))}
+      </div>
+
+      <!-- 1. Properties -->
+      <section class="mb-16">
+        <SectionHeading id="propiedades" eyebrow="Corrección 01" title="Los símbolos $ del application.properties" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          <p>
+            application.properties es el archivo donde Spring Boot lee su
+            configuración: en qué puerto arranca, a qué base se conecta, con qué
+            usuario y contraseña. Cuando un valor se escribe como
+            <span class="font-mono text-site-text">{"${DB_PASSWORD:valor}"}</span>,
+            Spring no lo toma como texto fijo. Lo que hace es buscar una
+            variable llamada DB_PASSWORD, que puede estar en el sistema
+            operativo o en otra propiedad, y si no la encuentra usa lo que va
+            después de los dos puntos.
+          </p>
+          <p>
+            Usar <span class="font-mono text-site-text">{"${...}"}</span> está
+            bien, es la forma correcta de no dejar los datos fijos en el código.
+            El problema es lo que pusimos después de los dos puntos: la
+            contraseña de MySQL, la de MongoDB y la clave para firmar los tokens
+            quedaron escritas como valor por defecto. Como el archivo está en
+            GitHub, cualquiera que vea el repositorio las tiene. Además, si a
+            alguien se le olvida configurar la variable, la aplicación arranca
+            igual con la contraseña de prueba y nadie se da cuenta.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <CodeBlock label="Antes" code={propertiesAntes} />
+          <CodeBlock label="Después" code={propertiesDespues} />
+        </div>
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mt-6 mb-6">
+          <p>
+            La corrección es dejar los datos que no son secretos con su valor
+            por defecto (el puerto, las horas del token) y quitarles el valor a
+            los secretos. Así, si falta la variable, la aplicación no se
+            logra conectar o no arranca, y queda claro que falta configurarla. Las variables se ponen en la terminal o en la
+            configuración de ejecución del IDE, y nunca se suben al repositorio.
+            Como las contraseñas ya estuvieron en GitHub, también toca
+            cambiarlas en MySQL y en MongoDB.
+          </p>
+        </div>
+        <CodeBlock label="Cómo se pasan las variables" code={variables} />
+      </section>
+
+      <!-- 2. Lógica -->
+      <section class="mb-16">
+        <SectionHeading id="logica" eyebrow="Corrección 02" title="Toda la lógica del negocio en un solo lado" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          <p>
+            En BountyLine casi todas las reglas del negocio viven en MySQL: 24
+            procedimientos, 4 funciones y 14 triggers. El backend en Spring Boot
+            casi no decide nada, solo llama a esos procedimientos y devuelve lo
+            que responden. Lo hicimos así para que las operaciones con créditos
+            no quedaran a medias, y eso sí funcionó.
+          </p>
+          <p>
+            Lo que nos dijeron es que cargar todo en un solo lado es una mala
+            práctica. Estas son las razones, en palabras simples:
+          </p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+          {[
+            { t: "Es difícil de probar", d: "Para probar una regla hay que tener MySQL encendido con datos. En Java una regla se prueba sola con una prueba unitaria." },
+            { t: "Amarra el proyecto a MySQL", d: "Si mañana se cambia de motor, hay que reescribir todos los procedimientos y triggers en otro lenguaje." },
+            { t: "Cuesta encontrar errores", d: "Cuando algo falla dentro de un procedimiento, el error llega como un mensaje de SIGNAL y no se ve en qué paso del flujo pasó." },
+            { t: "Todo el trabajo cae en la base", d: "Si la aplicación crece, la base termina haciendo cálculos que el servidor de la aplicación podría hacer." }
+          ].map((r) => (
+            <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20">
+              <h3 class="font-display font-bold text-sm text-white uppercase tracking-wide mb-2">{r.t}</h3>
+              <p class="text-sm text-site-muted leading-relaxed">{r.d}</p>
+            </div>
+          ))}
+        </div>
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          La corrección es repartir las reglas entre las tres capas según lo
+          que le toca a cada una:
+        </p>
+        <div class="rounded-2xl border border-site-border overflow-hidden mb-6">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-site-surface/50 text-left">
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Capa</th>
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Qué reglas van ahí</th>
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Por qué</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reparto.map((r) => (
+                  <tr class="border-t border-site-border">
+                    <td class="px-4 py-3 font-mono text-site-text whitespace-nowrap">{r.capa}</td>
+                    <td class="px-4 py-3 text-site-muted">{r.que}</td>
+                    <td class="px-4 py-3 text-site-muted">{r.porque}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <CodeBlock label="Ejemplo de una validación en Java" code={javaValidacion} />
+        <p class="text-site-muted leading-relaxed max-w-3xl mt-5">
+          Con esto la transacción de cerrar una misión sigue en el
+          procedimiento, porque ahí es donde está bien, pero las validaciones de
+          datos y de permisos pasan a Java, donde se pueden probar y leer más
+          fácil.
+        </p>
+      </section>
+
+      <!-- 3. ETL -->
+      <section class="mb-16">
+        <SectionHeading id="etl" eyebrow="Corrección 03" title="La propuesta de ETL explicada" />
+
+        <div class="p-5 rounded-xl border mb-8" style="border-color: rgb(var(--primary-ch) / 0.4); background: rgb(var(--primary-ch) / 0.06);">
+          <p class="text-site-text leading-relaxed">
+            Esto es una propuesta. No está implementada en el proyecto: no hay
+            tablas de hechos ni procedimiento de ETL en los scripts. Lo que sigue
+            es cómo se haría si se construyera.
+          </p>
+        </div>
+
+        <h3 class="font-display font-bold text-xl text-white mb-3">Para qué sirve</h3>
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          <p>
+            La base de MySQL está hecha para el día a día: guardar una misión,
+            pagar, calificar. No está hecha para preguntas de análisis como
+            "cuánto se movió cada mes" o "en qué zona se pagan más las
+            recompensas". Esas preguntas se responden mejor en una base aparte,
+            llamada bodega de datos o data warehouse, donde los datos ya están
+            acomodados para contar y sumar.
+          </p>
+          <p>
+            ETL es el proceso que lleva los datos de una base a la otra. Son
+            tres pasos:
+          </p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+          {pasos.map((p) => (
+            <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20">
+              <p class="font-display font-bold text-3xl" style="color: var(--color-primary);">{p.letra}</p>
+              <p class="font-display font-bold text-sm text-white uppercase tracking-wide mt-1 mb-2">{p.nombre}</p>
+              <p class="text-sm text-site-muted leading-relaxed">{p.texto}</p>
+            </div>
+          ))}
+        </div>
+
+        <h3 class="font-display font-bold text-xl text-white mb-3">Hechos y dimensiones</h3>
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          <p>
+            En una bodega de datos hay dos tipos de tablas. Las de hechos
+            guardan lo que pasó y se puede medir, como una misión con su monto o
+            un pago. Las de dimensiones guardan el contexto para filtrar y
+            agrupar esos hechos: cuándo, dónde, de qué tipo y quién.
+          </p>
+        </div>
+
+        <!-- Diagrama estrella -->
+        <div class="p-6 rounded-2xl border border-site-border bg-site-surface/30 mb-6">
+          <p class="text-xs font-mono uppercase tracking-widest text-site-muted mb-5 text-center">Modelo estrella propuesto</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+            <div class="space-y-4">
+              {dimensiones.slice(0, 2).map((d) => (
+                <div class="p-4 rounded-xl border border-site-border bg-site-surface/40">
+                  <p class="font-mono text-sm text-site-text mb-1">{d.nombre}</p>
+                  <p class="text-xs text-site-muted leading-relaxed">{d.texto}</p>
+                </div>
+              ))}
+            </div>
+            <div class="space-y-3">
+              {hechos.map((h) => (
+                <div class="p-4 rounded-xl border text-center" style="border-color: rgb(var(--primary-ch) / 0.5); background: rgb(var(--primary-ch) / 0.08);">
+                  <p class="font-mono text-sm font-semibold" style="color: var(--color-primary);">{h.nombre}</p>
+                  <p class="text-xs text-site-muted mt-1">{h.grano}</p>
+                </div>
+              ))}
+            </div>
+            <div class="space-y-4">
+              {dimensiones.slice(2).map((d) => (
+                <div class="p-4 rounded-xl border border-site-border bg-site-surface/40">
+                  <p class="font-mono text-sm text-site-text mb-1">{d.nombre}</p>
+                  <p class="text-xs text-site-muted leading-relaxed">{d.texto}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p class="text-xs text-site-muted text-center mt-5">Los hechos van en el centro y cada uno se une directo con las dimensiones que necesita.</p>
+        </div>
+
+        <div class="rounded-2xl border border-site-border overflow-hidden mb-12">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-site-surface/50 text-left">
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Tabla de hechos</th>
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Grano (qué es una fila)</th>
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Qué mide</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hechos.map((h) => (
+                  <tr class="border-t border-site-border">
+                    <td class="px-4 py-3 font-mono text-site-text whitespace-nowrap">{h.nombre}</td>
+                    <td class="px-4 py-3 text-site-muted">{h.grano}</td>
+                    <td class="px-4 py-3 text-site-muted">{h.guarda}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <h3 class="font-display font-bold text-xl text-white mb-3">Por qué estrella y no copo de nieve</h3>
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          <p>
+            En el modelo estrella cada dimensión es una sola tabla pegada
+            directo al hecho, como las puntas de una estrella. En el copo de
+            nieve las dimensiones se parten en más tablas. Por ejemplo, zona se
+            dividiría en zona, región y país, y para llegar al país habría que
+            pasar por las otras dos.
+          </p>
+          <p>
+            Elegimos estrella por dos razones principales. La primera es que las
+            jerarquías son planas: una zona solo tiene nombre y nivel de
+            peligro, no pertenece a una región ni a un país, entonces no hay
+            nada que partir. Lo mismo pasa con especialidad y con
+            cazarrecompensas. La segunda es que las preguntas que se harían
+            (ingresos por mes, recompensa promedio por zona y especialidad, días
+            para cerrar una misión según la reputación) cruzan un hecho con una
+            o dos dimensiones. En estrella eso es un JOIN directo por
+            dimensión. En copo de nieve serían cadenas de JOIN más largas y más
+            fáciles de equivocar.
+          </p>
+          <p>
+            También pesó que el volumen de datos es pequeño. La ventaja clásica
+            del copo de nieve es ahorrar espacio al no repetir textos, y aquí el
+            espacio no es un problema. Por eso en dim_cazarrecompensas la zona
+            base se guarda como texto repetido en vez de una llave a dim_zona:
+            se acepta un poco de repetición a cambio de consultas más simples.
+          </p>
+          <p>
+            El copo de nieve tendría sentido si BountyLine creciera y las zonas
+            se agruparan en regiones y países de verdad. Ahí zona se partiría en
+            dim_zona, dim_region y dim_pais.
+          </p>
+        </div>
+
+        <h3 class="font-display font-bold text-xl text-white mb-3 mt-12">Reglas para cuando se implemente</h3>
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          <p>
+            El grano es la regla más importante: cada tabla de hechos debe
+            tener un solo tipo de fila. Si en fact_mision se metieran también
+            las postulaciones como filas, el monto de una misión con cinco
+            postulaciones se sumaría cinco veces. Por eso las postulaciones se
+            cuentan con COUNT y quedan como un número dentro de la fila de la
+            misión.
+          </p>
+          <p>
+            El orden de carga también importa. Primero van las dimensiones y
+            después los hechos, porque un hecho apunta a una fila de dimensión
+            que ya tiene que existir.
+          </p>
+          <p>
+            Las misiones que nadie ha tomado no tienen cazarrecompensas. En vez
+            de dejar el campo vacío, que las haría desaparecer al unir con la
+            dimensión, se crea una fila especial con llave -1 que dice "Sin
+            asignar".
+          </p>
+        </div>
+        <CodeBlock label="Fila para los valores que faltan" code={sinAsignar} />
+
+        <h3 class="font-display font-bold text-xl text-white mb-4 mt-12">Tres errores que hay que evitar al cargar</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {ajustes.map((a) => (
+            <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20">
+              <h4 class="font-display font-bold text-sm text-white uppercase tracking-wide mb-2">{a.titulo}</h4>
+              <p class="text-sm text-site-muted leading-relaxed">{a.texto}</p>
+            </div>
+          ))}
+        </div>
+        <CodeBlock label="Fecha inicial de dim_tiempo con los dos primeros arreglos" code={fechaInicial} />
+
+        <h3 class="font-display font-bold text-xl text-white mb-3 mt-12">Cómo saber si la carga quedó bien</h3>
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          Después de cargar se corren dos revisiones. La primera debe dar 0: si
+          da otro número, hay misiones apuntando a una zona que no existe en la
+          dimensión. La segunda compara el total de pagos en la bodega y en
+          MySQL, y si no da igual es porque se perdieron o se duplicaron filas.
+          Antes de eso conviene revisar con SELECT DISTINCT los textos reales de
+          los estados y tipos, porque si en la consulta se escribe 'Pago' y en
+          la base dice 'PAGO', el resultado sale en cero sin ningún error.
+        </p>
+        <CodeBlock label="Validación de la carga" code={validacion} />
+      </section>
+
+      <a
+        href={withBase("/evidencias/proyecto")}
+        class="inline-block text-sm font-mono"
+        style="color: var(--color-primary);"
+      >
+        Ver el proyecto completo →
+      </a>
+
+    </div>
+  </div>
+
+  <Footer />
+</Layout>

@@ -51,6 +51,11 @@
           "label": "Proyecto",
           "href": "/evidencias/proyecto",
           "iconKey": "rocket"
+        },
+        {
+          "label": "Correcciones proyecto",
+          "href": "/evidencias/correcciones",
+          "iconKey": "support"
         }
       ]
     },

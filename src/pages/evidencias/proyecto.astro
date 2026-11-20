@@ -7,6 +7,7 @@ import References from "@/components/evidencias/References.astro";
 import { withBase } from "@/lib/assetPath";
 
 const repoUrl = "https://github.com/gabGABY006/BountyLine";
+const videoUrl = "https://youtu.be/qVt9Vf7JouA";
 
 const cifras = [
   { valor: "14", texto: "tablas en MySQL" },
@@ -17,9 +18,9 @@ const cifras = [
 
 const capas = [
   { label: "Presentación", titulo: "Angular", texto: "Interfaz web en TypeScript con pantallas para los tres roles: feed, mercado de misiones, billetera, chat, perfil y panel de administración." },
-  { label: "Aplicación", titulo: "Spring Boot", texto: "API REST en Java 21. Llama a los procedimientos de MySQL por JDBC y usa MongoTemplate para MongoDB. Seguridad con Spring Security y JWT." },
-  { label: "Datos relacionales", titulo: "MySQL 8.4", texto: "Corre en su propia máquina virtual con Ubuntu Server. Guarda cuentas, billeteras, misiones, pagos, calificaciones, reportes y auditoría." },
-  { label: "Datos de documentos", titulo: "MongoDB 8.0", texto: "Corre en otra máquina virtual. Guarda las publicaciones del feed, el chat de cada misión y la bitácora de actividad." }
+  { label: "Aplicación", titulo: "Spring Boot 4", texto: "API REST en Java 21. Llama a los procedimientos de MySQL por JDBC y usa Spring Data MongoDB. Seguridad con Spring Security y JWT." },
+  { label: "Datos relacionales", titulo: "MySQL 8.4", texto: "Corre en la máquina virtual BountyLine-MySQL con Ubuntu Server 26.04 LTS. Guarda cuentas, billeteras, misiones, pagos, calificaciones, reportes y auditoría." },
+  { label: "Datos de documentos", titulo: "MongoDB 8.0", texto: "Corre en la máquina virtual BountyLine-MongoDB, también con Ubuntu Server 26.04 LTS. Guarda las publicaciones del feed, el chat de cada misión y la bitácora de actividad." }
 ];
 
 const tablas = [
@@ -111,12 +112,16 @@ db.publicaciones.aggregate([
 `;
 
 const documentos = [
-  "Propuesta del proyecto (contexto, requerimientos, historias de usuario, casos de uso y casos de aceptación)",
-  "Diagrama C4 de componentes",
-  "Documento de supuestos, que el código referencia con comentarios Sxx",
-  "Documento de implementación en las máquinas virtuales",
-  "Acta de constitución del proyecto",
-  "Diccionario de datos"
+  "Fase 1: propuesta del proyecto, documento de supuestos, acta de constitución con Gantt y matriz RACI, diagrama C4 de componentes",
+  "Modelos de datos: E-R de Peter Chen, E-R extendido, relacional en Crow's Foot y diccionario de datos",
+  "Diagramas UML de clases, objetos, paquetes y despliegue",
+  "Análisis de selección del sistema operativo y del motor relacional",
+  "Documentos de implementación de MySQL y de MongoDB en las máquinas virtuales, y el modelo documental de MongoDB",
+  "Documentos de conexión de la aplicación con cada base de datos",
+  "Documento SQL de reportes con 12 consultas para el administrador",
+  "Plan de recuperación ante desastres y política de backups",
+  "Propuesta de procesos ETL con modelo estrella (no implementada)",
+  "Informe ejecutivo final y acta de cierre"
 ];
 
 const referencias = [
@@ -172,6 +177,24 @@ const referencias = [
           style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.35);"
         >
           Ver el repositorio en GitHub →
+        </a>
+
+        <a
+          href={videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 px-4 py-2 ml-2 rounded-lg text-sm font-mono border transition-colors hover:text-white"
+          style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.35);"
+        >
+          Ver el video demostrativo →
+        </a>
+
+        <a
+          href={withBase("/evidencias/correcciones")}
+          class="inline-flex items-center gap-2 px-4 py-2 ml-2 rounded-lg text-sm font-mono border transition-colors hover:text-white"
+          style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.35);"
+        >
+          Correcciones de los profesores →
         </a>
       </div>
 
@@ -392,6 +415,13 @@ const referencias = [
         <SectionHeading eyebrow="Cierre" title="Conclusiones" />
         <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
           <p>
+            La carga de prueba deja 24 cuentas, 24 misiones, 68 postulaciones,
+            61 movimientos, 9 calificaciones y 4 reportes en MySQL, y 28
+            publicaciones, 96 mensajes y 160 eventos en MongoDB. La aplicación
+            cubre los 15 requerimientos funcionales y los 7 no funcionales de la
+            propuesta, con 22 criterios de aceptación.
+          </p>
+          <p>
             Usar dos motores tiene sentido cuando los datos de verdad son
             distintos. En BountyLine la billetera necesita ACID y el feed
             necesita flexibilidad. Meter cualquiera de los dos en el otro motor
@@ -404,10 +434,11 @@ const referencias = [
             desde Java.
           </p>
           <p>
-            Lo que más se aprende es en las fronteras: cómo guardar en MongoDB
-            una referencia a una cuenta de MySQL sin llave foránea, o cómo
-            convertir un SIGNAL de la base en un error HTTP entendible para el
-            frontend.
+            En el informe final dejamos dos lecciones que también salieron en
+            la revisión. Las credenciales no deben quedar escritas en el
+            repositorio, y la documentación hay que revisarla contra los
+            scripts antes de cada entrega, porque al cierre encontramos
+            versiones de software y nombres de columnas que ya no coincidían.
           </p>
         </div>
       </section>
