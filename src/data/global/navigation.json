@@ -43,6 +43,11 @@
           "iconKey": "database"
         },
         {
+          "label": "Laboratorios",
+          "href": "/evidencias/laboratorios",
+          "iconKey": "grid"
+        },
+        {
           "label": "Proyecto",
           "href": "/evidencias/proyecto",
           "iconKey": "rocket"

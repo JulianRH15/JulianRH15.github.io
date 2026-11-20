@@ -1,0 +1,545 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Footer from "@/components/Footer.astro";
+import SectionHeading from "@/components/evidencias/SectionHeading.astro";
+import CodeBlock from "@/components/evidencias/CodeBlock.astro";
+import { withBase } from "@/lib/assetPath";
+
+interface Lab {
+  id: string;
+  titulo: string;
+  enunciado: string;
+  temas: string[];
+  codigo: string;
+  explicacion: string;
+}
+
+const sql: Lab[] = [
+  {
+    id: "sql-1",
+    titulo: "Los tres salarios más altos de cada departamento",
+    enunciado: "Mostrar, por cada departamento, los empleados que están entre los tres salarios más altos. Si dos empleados empatan, deben quedar en el mismo puesto sin saltarse el siguiente.",
+    temas: ["DENSE_RANK", "PARTITION BY", "subconsulta en FROM"],
+    codigo: `
+SELECT department_name, last_name, salary, puesto
+  FROM (SELECT d.department_name, e.last_name, e.salary,
+               DENSE_RANK() OVER (PARTITION BY e.department_id
+                                  ORDER BY e.salary DESC) AS puesto
+          FROM employees e
+          JOIN departments d ON d.department_id = e.department_id)
+ WHERE puesto <= 3
+ ORDER BY department_name, puesto;
+`,
+    explicacion: "La función de ventana no se puede filtrar en el mismo WHERE donde se calcula, porque las funciones analíticas se procesan después del WHERE. Por eso el ranking va en una subconsulta y el filtro afuera. Con RANK un empate en el primer puesto haría saltar al tercero, con DENSE_RANK no."
+  },
+  {
+    id: "sql-2",
+    titulo: "Organigrama de la empresa",
+    enunciado: "Mostrar la jerarquía completa de empleados desde el presidente hacia abajo, con el nivel de cada uno, una sangría según ese nivel y la ruta de jefes que lleva hasta él.",
+    temas: ["CONNECT BY", "LEVEL", "SYS_CONNECT_BY_PATH", "ORDER SIBLINGS BY"],
+    codigo: `
+SELECT LPAD(' ', 2 * (LEVEL - 1)) || first_name || ' ' || last_name AS empleado,
+       LEVEL AS nivel,
+       SYS_CONNECT_BY_PATH(last_name, ' > ') AS ruta
+  FROM employees
+ START WITH manager_id IS NULL
+CONNECT BY PRIOR employee_id = manager_id
+ ORDER SIBLINGS BY last_name;
+`,
+    explicacion: "START WITH define la raíz (el único empleado sin jefe) y CONNECT BY PRIOR dice cómo bajar: el employee_id del padre es el manager_id del hijo. ORDER SIBLINGS BY ordena dentro de cada nivel sin romper el árbol, cosa que un ORDER BY normal sí haría."
+  },
+  {
+    id: "sql-3",
+    titulo: "Empleados por encima de dos promedios",
+    enunciado: "Listar los empleados que ganan más que el promedio de su departamento y también más que el promedio de su cargo, con el porcentaje que están por encima del promedio del departamento.",
+    temas: ["WITH", "AVG OVER", "dos particiones distintas"],
+    codigo: `
+WITH base AS (
+  SELECT e.last_name, e.job_id, e.department_id, e.salary,
+         AVG(e.salary) OVER (PARTITION BY e.department_id) AS prom_depto,
+         AVG(e.salary) OVER (PARTITION BY e.job_id)        AS prom_cargo
+    FROM employees e
+)
+SELECT last_name, job_id, department_id, salary,
+       ROUND(prom_depto, 2) AS prom_depto,
+       ROUND(prom_cargo, 2) AS prom_cargo,
+       ROUND((salary - prom_depto) / prom_depto * 100, 1) AS pct_sobre_depto
+  FROM base
+ WHERE salary > prom_depto
+   AND salary > prom_cargo
+ ORDER BY pct_sobre_depto DESC;
+`,
+    explicacion: "Con GROUP BY habría que hacer dos subconsultas agrupadas y unirlas con la tabla. Con funciones de ventana cada fila conserva sus datos y recibe los dos promedios al lado, cada uno calculado sobre una partición distinta."
+  },
+  {
+    id: "sql-4",
+    titulo: "Nómina por región y país con subtotales",
+    enunciado: "Sacar la cantidad de empleados y la nómina total por región y por país, con un subtotal por región y un total general y marcar cuáles filas son subtotales.",
+    temas: ["ROLLUP", "GROUPING", "joins de cinco tablas"],
+    codigo: `
+SELECT CASE WHEN GROUPING(r.region_name) = 1 THEN 'TOTAL GENERAL'
+            ELSE r.region_name END AS region,
+       CASE WHEN GROUPING(c.country_name) = 1 AND GROUPING(r.region_name) = 0
+            THEN 'Subtotal de la región'
+            ELSE c.country_name END AS pais,
+       COUNT(e.employee_id) AS empleados,
+       SUM(e.salary) AS nomina
+  FROM employees e
+  JOIN departments d ON d.department_id = e.department_id
+  JOIN locations l   ON l.location_id = d.location_id
+  JOIN countries c   ON c.country_id = l.country_id
+  JOIN regions r     ON r.region_id = c.region_id
+ GROUP BY ROLLUP (r.region_name, c.country_name)
+ ORDER BY r.region_name, c.country_name;
+`,
+    explicacion: "ROLLUP genera en una sola consulta los niveles (región, país), (región) y el total. GROUPING devuelve 1 en las filas donde esa columna fue agregada, así se puede distinguir un subtotal de un país cuyo nombre fuera nulo."
+  },
+  {
+    id: "sql-5",
+    titulo: "Contrataciones por año con acumulado y variación",
+    enunciado: "Mostrar cuántos empleados se contrataron cada año, el acumulado de contrataciones hasta ese año y la diferencia frente al año anterior.",
+    temas: ["LAG", "SUM OVER", "EXTRACT"],
+    codigo: `
+SELECT anio, contratados,
+       SUM(contratados) OVER (ORDER BY anio) AS acumulado,
+       contratados - LAG(contratados) OVER (ORDER BY anio) AS variacion
+  FROM (SELECT EXTRACT(YEAR FROM hire_date) AS anio, COUNT(*) AS contratados
+          FROM employees
+         GROUP BY EXTRACT(YEAR FROM hire_date))
+ ORDER BY anio;
+`,
+    explicacion: "Primero se agrupa por año y después se aplican las ventanas sobre ese resultado. LAG trae el valor de la fila anterior según el orden indicado, por eso el primer año queda con variación nula."
+  }
+];
+
+const plsql: Lab[] = [
+  {
+    id: "plsql-1",
+    titulo: "Aumento de salario por departamento",
+    enunciado: "Crear un procedimiento que aumente en un porcentaje el salario de los empleados de un departamento sin pasar el salario máximo de su cargo. Debe rechazar porcentajes fuera de 0 a 30, devolver cuántos empleados se actualizaron y deshacer todo si algo falla.",
+    temas: ["cursor FOR", "FOR UPDATE", "parámetro OUT", "excepción propia", "ROLLBACK"],
+    codigo: `
+CREATE OR REPLACE PROCEDURE aumentar_salario_depto (
+    p_department_id IN  employees.department_id%TYPE,
+    p_porcentaje    IN  NUMBER,
+    p_actualizados  OUT NUMBER
+) IS
+    e_porcentaje_invalido EXCEPTION;
+    v_nuevo employees.salary%TYPE;
+BEGIN
+    IF p_porcentaje <= 0 OR p_porcentaje > 30 THEN
+        RAISE e_porcentaje_invalido;
+    END IF;
+
+    p_actualizados := 0;
+
+    FOR r IN (SELECT e.employee_id, e.salary, j.max_salary
+                FROM employees e
+                JOIN jobs j ON j.job_id = e.job_id
+               WHERE e.department_id = p_department_id
+                 FOR UPDATE OF e.salary) LOOP
+        v_nuevo := LEAST(ROUND(r.salary * (1 + p_porcentaje / 100), 2), r.max_salary);
+        IF v_nuevo > r.salary THEN
+            UPDATE employees SET salary = v_nuevo WHERE employee_id = r.employee_id;
+            p_actualizados := p_actualizados + 1;
+        END IF;
+    END LOOP;
+
+    IF p_actualizados = 0 THEN
+        RAISE_APPLICATION_ERROR(-20010,
+            'Ningún empleado del departamento ' || p_department_id || ' recibió aumento.');
+    END IF;
+
+    COMMIT;
+EXCEPTION
+    WHEN e_porcentaje_invalido THEN
+        RAISE_APPLICATION_ERROR(-20011, 'El porcentaje debe estar entre 0 y 30.');
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+/
+
+-- Prueba
+SET SERVEROUTPUT ON
+DECLARE
+    v_total NUMBER;
+BEGIN
+    aumentar_salario_depto(60, 10, v_total);
+    DBMS_OUTPUT.PUT_LINE('Empleados actualizados: ' || v_total);
+END;
+/
+`,
+    explicacion: "FOR UPDATE bloquea las filas del departamento mientras dura el ciclo, para que nadie más las cambie a mitad del aumento. LEAST deja el salario en el tope del cargo si el aumento lo pasa. Cualquier error cae en WHEN OTHERS, que deshace lo hecho y relanza la excepción para que quien llamó sepa qué pasó."
+  },
+  {
+    id: "plsql-2",
+    titulo: "Función de antigüedad usada desde SQL",
+    enunciado: "Crear una función que reciba el id de un empleado y devuelva sus años completos en la empresa. Si el empleado no existe debe devolver NULL. Usarla en una consulta para listar a quienes llevan 20 años o más.",
+    temas: ["función", "SELECT INTO", "NO_DATA_FOUND", "MONTHS_BETWEEN"],
+    codigo: `
+CREATE OR REPLACE FUNCTION anios_antiguedad (
+    p_employee_id IN employees.employee_id%TYPE
+) RETURN NUMBER IS
+    v_fecha employees.hire_date%TYPE;
+BEGIN
+    SELECT hire_date INTO v_fecha
+      FROM employees
+     WHERE employee_id = p_employee_id;
+
+    RETURN TRUNC(MONTHS_BETWEEN(SYSDATE, v_fecha) / 12);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+END;
+/
+
+SELECT last_name, hire_date, anios_antiguedad(employee_id) AS antiguedad
+  FROM employees
+ WHERE anios_antiguedad(employee_id) >= 20
+ ORDER BY antiguedad DESC;
+`,
+    explicacion: "Un SELECT INTO que no encuentra filas lanza NO_DATA_FOUND, y si no se maneja la consulta que usa la función se cae. MONTHS_BETWEEN dividido entre 12 y truncado da años cumplidos, cosa que restar fechas y dividir entre 365 no logra por los años bisiestos."
+  },
+  {
+    id: "plsql-3",
+    titulo: "Auditoría y control de cambios de salario",
+    enunciado: "Guardar en una tabla de auditoría cada cambio de salario con el valor anterior, el nuevo, el usuario y la fecha. Además, impedir cualquier aumento mayor al 50% en una sola actualización.",
+    temas: ["trigger de fila", ":OLD y :NEW", "cláusula WHEN", "IDENTITY"],
+    codigo: `
+CREATE TABLE auditoria_salarios (
+    id_auditoria     NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    employee_id      NUMBER(6)    NOT NULL,
+    salario_anterior NUMBER(8,2),
+    salario_nuevo    NUMBER(8,2),
+    usuario          VARCHAR2(128) DEFAULT USER,
+    fecha            DATE          DEFAULT SYSDATE
+);
+
+CREATE OR REPLACE TRIGGER trg_auditar_salario
+BEFORE UPDATE OF salary ON employees
+FOR EACH ROW
+WHEN (NEW.salary <> OLD.salary)
+BEGIN
+    IF :NEW.salary > :OLD.salary * 1.5 THEN
+        RAISE_APPLICATION_ERROR(-20020,
+            'Un aumento no puede pasar del 50% del salario actual.');
+    END IF;
+
+    INSERT INTO auditoria_salarios (employee_id, salario_anterior, salario_nuevo)
+    VALUES (:OLD.employee_id, :OLD.salary, :NEW.salary);
+END;
+/
+
+-- Prueba: el primero se audita, el segundo se rechaza
+UPDATE employees SET salary = salary * 1.10 WHERE employee_id = 107;
+UPDATE employees SET salary = salary * 2    WHERE employee_id = 107;
+SELECT * FROM auditoria_salarios;
+`,
+    explicacion: "UPDATE OF salary hace que el trigger solo se dispare cuando cambia esa columna y la cláusula WHEN evita registrar actualizaciones que dejan el mismo valor. En la cláusula WHEN se escribe NEW sin los dos puntos, dentro del cuerpo sí van. Como la inserción de auditoría va en la misma transacción, si el UPDATE se deshace la auditoría también."
+  },
+  {
+    id: "plsql-4",
+    titulo: "Paquete de nómina con BULK COLLECT",
+    enunciado: "Crear un paquete con una función que devuelva la nómina de un departamento y un procedimiento que imprima esa nómina para todos los departamentos y que los cargue en memoria de una sola vez.",
+    temas: ["paquete", "colección", "BULK COLLECT", "%ROWTYPE", "DBMS_OUTPUT"],
+    codigo: `
+CREATE OR REPLACE PACKAGE pkg_nomina AS
+    FUNCTION total_departamento (p_department_id IN NUMBER) RETURN NUMBER;
+    PROCEDURE reporte_departamentos;
+END pkg_nomina;
+/
+
+CREATE OR REPLACE PACKAGE BODY pkg_nomina AS
+
+    FUNCTION total_departamento (p_department_id IN NUMBER) RETURN NUMBER IS
+        v_total NUMBER;
+    BEGIN
+        SELECT NVL(SUM(salary), 0) INTO v_total
+          FROM employees
+         WHERE department_id = p_department_id;
+        RETURN v_total;
+    END total_departamento;
+
+    PROCEDURE reporte_departamentos IS
+        TYPE t_deptos IS TABLE OF departments%ROWTYPE;
+        v_deptos t_deptos;
+    BEGIN
+        SELECT * BULK COLLECT INTO v_deptos
+          FROM departments
+         ORDER BY department_name;
+
+        FOR i IN 1 .. v_deptos.COUNT LOOP
+            DBMS_OUTPUT.PUT_LINE(
+                RPAD(v_deptos(i).department_name, 25) ||
+                TO_CHAR(total_departamento(v_deptos(i).department_id), '999G999D99'));
+        END LOOP;
+    END reporte_departamentos;
+
+END pkg_nomina;
+/
+
+SET SERVEROUTPUT ON
+EXEC pkg_nomina.reporte_departamentos;
+`,
+    explicacion: "La especificación del paquete dice qué se puede llamar desde afuera y el cuerpo tiene la implementación, así se puede cambiar el cuerpo sin recompilar lo que depende del paquete. BULK COLLECT trae todas las filas a la colección en una sola ida al motor de SQL, en vez de una por fila como un cursor normal."
+  }
+];
+
+const mongo: Lab[] = [
+  {
+    id: "mongo-1",
+    titulo: "Panel de estadísticas en una sola consulta",
+    enunciado: "Sobre sample_mflix, devolver en una sola consulta tres resultados: películas y rating promedio por década, los cinco géneros con más películas y las cinco películas mejor calificadas que tengan al menos 50.000 votos.",
+    temas: ["$facet", "$sortByCount", "varios pipelines a la vez"],
+    codigo: `
+use("sample_mflix");
+db.movies.aggregate([
+  { $match: { "imdb.rating": { $type: "number" }, year: { $type: "number" } } },
+  { $facet: {
+      porDecada: [
+        { $group: {
+            _id: { $multiply: [{ $floor: { $divide: ["$year", 10] } }, 10] },
+            peliculas: { $sum: 1 },
+            rating: { $avg: "$imdb.rating" }
+        } },
+        { $sort: { _id: 1 } },
+        { $project: { _id: 0, decada: "$_id", peliculas: 1, rating: { $round: ["$rating", 2] } } }
+      ],
+      topGeneros: [
+        { $unwind: "$genres" },
+        { $sortByCount: "$genres" },
+        { $limit: 5 }
+      ],
+      mejorValoradas: [
+        { $match: { "imdb.votes": { $gte: 50000 } } },
+        { $sort: { "imdb.rating": -1 } },
+        { $limit: 5 },
+        { $project: { _id: 0, title: 1, year: 1, "imdb.rating": 1 } }
+      ]
+  } }
+]);
+`,
+    explicacion: "$facet corre varios pipelines sobre los mismos documentos de entrada y devuelve un solo documento con un arreglo por cada uno. El $match de afuera se aplica una vez para los tres. $sortByCount es un atajo de $group con $sum seguido de $sort descendente."
+  },
+  {
+    id: "mongo-2",
+    titulo: "Películas con su último comentario",
+    enunciado: "Para las películas de 2010 con rating de 7.5 o más, mostrar el total de comentarios y el comentario más reciente (autor, fecha y texto). Ordenar por cantidad de comentarios y dejar las diez primeras.",
+    temas: ["$lookup con pipeline", "let y $expr", "$first", "índice de apoyo"],
+    codigo: `
+use("sample_mflix");
+db.comments.createIndex({ movie_id: 1, date: -1 });
+
+db.movies.aggregate([
+  { $match: { year: 2010, "imdb.rating": { $gte: 7.5 } } },
+  { $lookup: {
+      from: "comments",
+      let: { idPelicula: "$_id" },
+      pipeline: [
+        { $match: { $expr: { $eq: ["$movie_id", "$$idPelicula"] } } },
+        { $sort: { date: -1 } },
+        { $group: {
+            _id: null,
+            total: { $sum: 1 },
+            ultimo: { $first: { autor: "$name", fecha: "$date", texto: "$text" } }
+        } }
+      ],
+      as: "comentarios"
+  } },
+  { $unwind: "$comentarios" },
+  { $project: {
+      _id: 0, title: 1, "imdb.rating": 1,
+      totalComentarios: "$comentarios.total",
+      ultimoComentario: "$comentarios.ultimo"
+  } },
+  { $sort: { totalComentarios: -1 } },
+  { $limit: 10 }
+]);
+`,
+    explicacion: "El $lookup con pipeline permite filtrar, ordenar y agrupar los documentos unidos antes de traerlos, así no llegan todos los comentarios de cada película. let pasa el _id de la película al pipeline y se usa con $$ dentro de $expr. El índice sobre movie_id y date hace que cada búsqueda del $lookup no recorra toda la colección. Las películas sin comentarios se pierden en el $unwind."
+  },
+  {
+    id: "mongo-3",
+    titulo: "Top 3 de cada año con funciones de ventana",
+    enunciado: "Entre 2000 y 2010, sacar las tres películas mejor calificadas de cada año (con al menos 10.000 votos), su puesto y el rating promedio de todas las películas de ese año.",
+    temas: ["$setWindowFields", "$denseRank", "ventana sobre toda la partición"],
+    codigo: `
+use("sample_mflix");
+db.movies.aggregate([
+  { $match: {
+      year: { $gte: 2000, $lte: 2010 },
+      "imdb.rating": { $type: "number" },
+      "imdb.votes": { $gte: 10000 }
+  } },
+  { $setWindowFields: {
+      partitionBy: "$year",
+      sortBy: { "imdb.rating": -1 },
+      output: {
+        puesto: { $denseRank: {} },
+        promedioDelAnio: {
+          $avg: "$imdb.rating",
+          window: { documents: ["unbounded", "unbounded"] }
+        }
+      }
+  } },
+  { $match: { puesto: { $lte: 3 } } },
+  { $project: {
+      _id: 0, year: 1, puesto: 1, title: 1,
+      rating: "$imdb.rating",
+      promedioDelAnio: { $round: ["$promedioDelAnio", 2] }
+  } },
+  { $sort: { year: 1, puesto: 1 } }
+]);
+`,
+    explicacion: "Es el mismo ejercicio que el primer laboratorio de SQL, hecho en MongoDB. $setWindowFields existe desde la versión 5.0 y equivale a OVER (PARTITION BY ... ORDER BY ...). El promedio se calcula antes del segundo $match, por eso incluye todas las películas del año y no solo las tres que quedan."
+  },
+  {
+    id: "mongo-4",
+    titulo: "Campos calculados con un update de pipeline",
+    enunciado: "Sobre sample_airbnb, agregar a cada listing una categoría de precio (económico por debajo de 100, medio por debajo de 300, premium desde 300) y el precio por huésped. Después, comparar el rating promedio de cada categoría.",
+    temas: ["updateMany con pipeline", "$switch", "Decimal128", "$group"],
+    codigo: `
+use("sample_airbnb");
+db.listingsAndReviews.updateMany(
+  { price: { $exists: true } },
+  [
+    { $set: {
+        categoriaPrecio: {
+          $switch: {
+            branches: [
+              { case: { $lt: ["$price", 100] }, then: "económico" },
+              { case: { $lt: ["$price", 300] }, then: "medio" }
+            ],
+            default: "premium"
+          }
+        },
+        precioPorHuesped: {
+          $round: [{ $divide: ["$price", { $max: ["$accommodates", 1] }] }, 2]
+        }
+    } }
+  ]
+);
+
+db.listingsAndReviews.aggregate([
+  { $match: { categoriaPrecio: { $exists: true } } },
+  { $group: {
+      _id: "$categoriaPrecio",
+      listings: { $sum: 1 },
+      ratingPromedio: { $avg: "$review_scores.review_scores_rating" },
+      precioPorHuesped: { $avg: "$precioPorHuesped" }
+  } },
+  { $sort: { ratingPromedio: -1 } }
+]);
+`,
+    explicacion: "Cuando el segundo parámetro de updateMany es un arreglo, MongoDB lo trata como un pipeline y el nuevo valor se puede calcular con los otros campos del mismo documento, cosa que un $set normal no permite. price está en Decimal128 y las comparaciones con números enteros funcionan igual. $max evita dividir entre cero si un listing no trae accommodates."
+  }
+];
+
+const areas = [
+  { id: "lab-sql", label: "SQL avanzado", total: sql.length, base: "Esquema HR de Oracle" },
+  { id: "lab-plsql", label: "PL/SQL", total: plsql.length, base: "Esquema HR en Oracle 19c" },
+  { id: "lab-mongo", label: "MongoDB", total: mongo.length, base: "sample_mflix y sample_airbnb" }
+];
+---
+
+<Layout
+  title="Laboratorios | Evidencias"
+  description="Laboratorios de práctica de SQL avanzado, PL/SQL y MongoDB con enunciado, solución y explicación."
+>
+  <div class="px-6 lg:px-12 pt-16 pb-20">
+    <div class="max-w-5xl mx-auto">
+
+      <a
+        href={withBase("/evidencias")}
+        class="text-sm font-mono text-site-muted hover:text-white"
+      >
+        ← Volver a Evidencias
+      </a>
+
+      <div class="mt-10 mb-12">
+        <span
+          class="text-xs font-mono uppercase tracking-[3px]"
+          style="color: var(--color-primary);"
+        >
+          Evidencias
+        </span>
+
+        <h1 class="font-display font-bold text-4xl sm:text-5xl text-white mt-3 mb-5">
+          Laboratorios
+        </h1>
+
+        <p class="text-site-text-muted text-lg max-w-3xl leading-relaxed">
+          Ejercicios de práctica más exigentes que los de los talleres, de los
+          tres temas de la materia. Cada laboratorio trae el enunciado, la
+          solución y una explicación de lo que pone a prueba. Los de SQL y
+          PL/SQL corren sobre el esquema de ejemplo HR y los de MongoDB sobre
+          los datasets de ejemplo de Atlas.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">
+        {areas.map((a) => (
+          <a
+            href={`#${a.id}`}
+            class="group p-5 rounded-xl border border-site-border/60 bg-site-surface/20 hover:bg-site-surface/40 hover:border-electric-blue/40 transition-all duration-300"
+          >
+            <p class="font-display font-bold text-3xl" style="color: var(--color-primary);">{a.total}</p>
+            <p class="font-display font-bold text-sm text-white uppercase tracking-wide mt-1">{a.label}</p>
+            <p class="text-xs font-mono text-site-muted mt-2">{a.base}</p>
+          </a>
+        ))}
+      </div>
+
+      {[
+        { id: "lab-sql", eyebrow: "Laboratorio · SQL avanzado", title: "Ventanas, jerarquías y subtotales", labs: sql },
+        { id: "lab-plsql", eyebrow: "Laboratorio · PL/SQL", title: "Procedimientos, funciones, triggers y paquetes", labs: plsql },
+        { id: "lab-mongo", eyebrow: "Laboratorio · MongoDB", title: "Pipelines de agregación avanzados", labs: mongo }
+      ].map((grupo) => (
+        <section class="mb-16">
+          <SectionHeading id={grupo.id} eyebrow={grupo.eyebrow} title={grupo.title} />
+          <div class="space-y-8">
+            {grupo.labs.map((lab, i) => (
+              <article id={lab.id} class="scroll-mt-24 p-6 rounded-2xl border border-site-border bg-site-surface/30">
+                <div class="flex flex-wrap items-center gap-3 mb-3">
+                  <span class="font-mono text-sm font-semibold" style="color: var(--color-primary);">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <h3 class="font-display font-bold text-xl text-white">{lab.titulo}</h3>
+                </div>
+                <p class="text-site-text-muted leading-relaxed mb-4">{lab.enunciado}</p>
+                <div class="flex flex-wrap gap-2 mb-5">
+                  {lab.temas.map((t) => (
+                    <span
+                      class="inline-flex px-2.5 py-1 rounded-md text-xs font-mono border"
+                      style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.25);"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                <CodeBlock label="Solución" code={lab.codigo} />
+                <p class="text-sm text-site-text leading-relaxed mt-5 pl-4 border-l" style="border-color: rgb(var(--primary-ch) / 0.4);">
+                  {lab.explicacion}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ))}
+
+      <div class="p-6 rounded-2xl border border-site-border bg-site-surface/30">
+        <h3 class="font-display font-bold text-lg text-white mb-3">Antes de correrlos</h3>
+        <p class="text-site-muted leading-relaxed">
+          El primer y el tercer laboratorio de PL/SQL cambian salarios en
+          employees y el cuarto de MongoDB agrega campos a listingsAndReviews.
+          Conviene correrlos sobre una copia del esquema o volver a cargar los
+          datos de ejemplo después.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <Footer />
+</Layout>
