@@ -1,0 +1,19 @@
+---
+interface Props {
+  code: string;
+  label?: string;
+}
+const { code, label } = Astro.props;
+---
+
+<div class="rounded-xl border border-site-border bg-site-surface/50 overflow-hidden">
+  {label && (
+    <div
+      class="px-4 py-2 border-b border-site-border text-xs font-mono uppercase tracking-widest"
+      style="color: var(--color-primary);"
+    >
+      {label}
+    </div>
+  )}
+  <pre class="p-4 overflow-x-auto text-[13px] leading-relaxed font-mono text-site-text"><code>{code.trim()}</code></pre>
+</div>

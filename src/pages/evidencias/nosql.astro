@@ -1,11 +1,290 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Footer from "@/components/Footer.astro";
+import SectionHeading from "@/components/evidencias/SectionHeading.astro";
+import CodeBlock from "@/components/evidencias/CodeBlock.astro";
+import References from "@/components/evidencias/References.astro";
 import { withBase } from "@/lib/assetPath";
+
+const talleres = [
+  {
+    id: "taller-airbnb",
+    label: "sample_airbnb",
+    title: "Taller MQL: CRUD y consultas",
+    description: "30 ejercicios sobre la colección listingsAndReviews: inserciones, find con filtros, actualizaciones y agregaciones."
+  },
+  {
+    id: "taller-mflix",
+    label: "sample_mflix",
+    title: "Taller MQL en pareja",
+    description: "17 puntos en pareja: consultas, pipelines con $lookup, escritura con $merge, índices con explain y tres casos de modelado."
+  },
+  {
+    id: "taller-restaurants",
+    label: "sample_restaurants",
+    title: "Práctica de consultas",
+    description: "Tres consultas cortas sobre restaurantes de Nueva York: filtros, conteo por tipo de cocina y top de barrios."
+  },
+  {
+    id: "taller-patrones",
+    label: "Video",
+    title: "Taller de patrones de modelado",
+    description: "Video en grupo explicando cada patrón de modelado de documentos de MongoDB con un ejemplo en JSON."
+  }
+];
+
+const airbnbPull = `
+// Punto 19. Quitar "Cable TV" de todos los listings que la tengan
+use("sample_airbnb");
+db.listingsAndReviews.updateMany(
+  { amenities: "Cable TV" },
+  { $pull: { amenities: "Cable TV" } }
+);
+`;
+
+const airbnbTop = `
+// Punto 23. Las 5 amenities más comunes de todo el dataset
+use("sample_airbnb");
+db.listingsAndReviews.aggregate([
+  { $unwind: "$amenities" },
+  { $group: { _id: "$amenities", total: { $sum: 1 } } },
+  { $sort: { total: -1 } },
+  { $limit: 5 }
+]);
+`;
+
+const airbnbUpsert = `
+// Punto 20. Si "Mansión de Prueba" no existe, upsert la crea
+use("sample_airbnb");
+db.listingsAndReviews.updateOne(
+  { name: "Mansión de Prueba" },
+  { $set: { price: 1500.00, "address.country": "United States" } },
+  { upsert: true }
+);
+`;
+
+const mflixLookup = `
+// Punto 9. Top 10 de películas más comentadas
+// Primero se agrupa y se limita, después se hace el $lookup
+db.comments.aggregate([
+  { $group: { _id: "$movie_id", numComentarios: { $sum: 1 } } },
+  { $sort: { numComentarios: -1 } },
+  { $limit: 10 },
+  { $lookup: { from: "movies", localField: "_id", foreignField: "_id", as: "pelicula" } },
+  { $unwind: "$pelicula" },
+  { $project: { _id: 0, titulo: "$pelicula.title", anio: "$pelicula.year", numComentarios: 1 } }
+]);
+`;
+
+const mflixIndex = `
+// Punto 14. Índice compuesto siguiendo la regla ESR
+// E (igualdad) = genres, S (orden) = imdb.rating, R (rango) = year
+db.movies.createIndex({ genres: 1, "imdb.rating": -1, year: 1 }, { name: "idx_punto14" });
+
+db.movies.find(
+  { genres: "Drama", year: { $gte: 2000, $lte: 2010 }, "imdb.rating": { $gte: 8 } },
+  { _id: 0, title: 1, year: 1, "imdb.rating": 1 }
+).sort({ "imdb.rating": -1 }).limit(10).explain("executionStats");
+`;
+
+const mflixSwitch = `
+// Punto 11. Colección nueva con una categoría calculada
+db.movies.aggregate([
+  { $match: { year: 2015, "imdb.rating": { $type: "number" } } },
+  { $project: {
+      titulo: "$title", generos: "$genres", rating: "$imdb.rating",
+      categoria: { $switch: {
+        branches: [
+          { case: { $gte: ["$imdb.rating", 7.5] }, then: "Alta" },
+          { case: { $gte: ["$imdb.rating", 6] }, then: "Media" }
+        ],
+        default: "Baja"
+      } }
+  } },
+  { $merge: { into: "peliculas_pareja", whenMatched: "replace", whenNotMatched: "insert" } }
+]);
+`;
+
+const restaurants = `
+// Punto 1. Restaurantes italianos en Brooklyn
+use("sample_restaurants");
+db.restaurants.find(
+  { cuisine: "Italian", borough: "Brooklyn" },
+  { _id: 0, name: 1, borough: 1, cuisine: 1, "address.street": 1 }
+);
+
+// Punto 2. Cantidad de restaurantes por tipo de cocina
+db.restaurants.aggregate([
+  { $group: { _id: "$cuisine", total: { $sum: 1 } } },
+  { $project: { _id: 0, cuisine: "$_id", total: 1 } },
+  { $sort: { total: -1 } }
+]);
+
+// Punto 3. Top 5 de barrios con más restaurantes
+db.restaurants.aggregate([
+  { $group: { _id: "$borough", total: { $sum: 1 } } },
+  { $project: { _id: 0, borough: "$_id", total: 1 } },
+  { $sort: { total: -1 } },
+  { $limit: 5 }
+]);
+`;
+
+const patrones = [
+  {
+    nombre: "Embebido y referencia",
+    problema: "Decidir si los datos relacionados van dentro del mismo documento o en otra colección.",
+    uso: "En el caso de domicilios las direcciones van embebidas en el cliente porque son pocas y se leen con él. Las reseñas van en su propia colección porque un restaurante puede tener más de 50.000. En BountyLine los comentarios van embebidos en la publicación y el chat se guarda como un documento por mensaje.",
+    sinEl: "Si todo se embebe, los documentos crecen sin control. Si todo se referencia, cada pantalla termina haciendo varios $lookup."
+  },
+  {
+    nombre: "Subset",
+    problema: "Un documento se vuelve muy grande, pero la pantalla solo muestra los elementos más recientes.",
+    uso: "El restaurante guarda sus 10 reseñas más recientes y la colección resenas guarda todas. En la red social cada publicación trae sus 3 últimos comentarios.",
+    sinEl: "50.000 reseñas de unos 300 bytes suman cerca de 15 MB, casi el límite de 16 MiB por documento, y cada visita a la pantalla las cargaría todas."
+  },
+  {
+    nombre: "Extended Reference",
+    problema: "Se hacen demasiados joins para traer siempre los mismos dos o tres campos.",
+    uso: "El pedido copia el nombre del cliente, del restaurante y del repartidor. En los ítems guarda el nombre y el precio del plato como copia histórica, así el pedido no cambia aunque el restaurante cambie el menú.",
+    sinEl: "Cada consulta de pedidos necesitaría $lookup a tres colecciones y los pedidos viejos mostrarían el precio nuevo."
+  },
+  {
+    nombre: "Computed",
+    problema: "Un total o un promedio se lee muchas más veces de las que cambia.",
+    uso: "El restaurante guarda promedio, suma y total de calificaciones y se recalculan al llegar una reseña. Las publicaciones guardan sus contadores de likes, comentarios y compartidos.",
+    sinEl: "Habría que recorrer todas las reseñas con $avg cada vez que alguien abre el restaurante."
+  },
+  {
+    nombre: "Bucket",
+    problema: "Series de tiempo o IoT con millones de lecturas pequeñas.",
+    uso: "En el caso de calidad del aire cada documento guarda una hora de un sensor con 60 lecturas. Con 200 sensores quedan 4.800 documentos al día en lugar de 288.000.",
+    sinEl: "Un documento por lectura serían más de 105 millones al año y el promedio horario tendría que juntar 60 documentos por sensor."
+  },
+  {
+    nombre: "Outlier",
+    problema: "Unos pocos documentos tienen arreglos mucho más grandes que el resto.",
+    uso: "Los usuarios guardan hasta 500 seguidores embebidos. Las cuentas institucionales que pasan de 100.000 se marcan con esOutlier y el resto va a seguidores_extra en páginas de 1.000.",
+    sinEl: "O se diseña todo pensando en la cuenta más grande y se castiga a la mayoría, o esa cuenta termina pasando el límite de tamaño."
+  },
+  {
+    nombre: "Attribute",
+    problema: "Productos con atributos que cambian de uno a otro.",
+    uso: "Los productos del menú guardan sus atributos como pares k / v (tamaño, nivel de picante, apto vegano). Un solo índice sobre atributos.k y atributos.v sirve para buscar por cualquiera.",
+    sinEl: "Habría un campo por atributo, muchos documentos con campos vacíos y un índice por cada atributo que se quiera buscar."
+  },
+  {
+    nombre: "Polymorphic",
+    problema: "Documentos de forma distinta que se consultan juntos.",
+    uso: "Las publicaciones de texto, imagen, video y encuesta viven en la misma colección y cada tipo trae su subdocumento. En BountyLine la bitácora de actividad guarda eventos de inicio de sesión, búsquedas y vistas, cada uno con sus propios campos.",
+    sinEl: "Con una colección por tipo, el feed necesitaría $unionWith de cuatro colecciones para ordenar por fecha."
+  },
+  {
+    nombre: "Schema Versioning",
+    problema: "El esquema cambia y no se quieren migrar los datos históricos.",
+    uso: "Los sensores nuevos agregan CO2. Cada documento lleva schemaVersion y la aplicación sabe qué campos esperar en la versión 1 y en la versión 2.",
+    sinEl: "Habría que migrar millones de lecturas viejas o la aplicación fallaría al buscar co2 donde no existe."
+  }
+];
+
+const bucketJson = `
+{
+  _id: "SEN-KEN-014_2026-11-18T13",
+  sensorId: "SEN-KEN-014",
+  localidad: "Kennedy",            // Extended Reference
+  hora: ISODate("2026-11-18T13:00:00Z"),
+  schemaVersion: 2,                // Schema Versioning
+  count: 60,                       // Bucket: 60 lecturas por hora
+  lecturas: [
+    { m: 0, pm25: 35.8, pm10: 58.2, temp: 15.6, hum: 72, co2: 448 },
+    { m: 1, pm25: 38.1, pm10: 60.4, temp: 15.7, hum: 72, co2: 451 }
+    // ... hasta m: 59
+  ],
+  resumen: {                       // Computed
+    pm25: { suma: 2232.0, min: 30.2, max: 44.9 }
+  },
+  alertas: 17                      // lecturas con PM2.5 > 37
+}
+`;
+
+const investigaciones = [
+  {
+    autor: "Coupal y Alger (2019)",
+    titulo: "Building with Patterns: A Summary",
+    hallazgo: "Cierra una serie de MongoDB donde describen doce patrones de modelado (Approximation, Attribute, Bucket, Computed, Document Versioning, Extended Reference, Outlier, Pre-allocation, Polymorphic, Schema Versioning, Subset y Tree) con sus ventajas, sus costos y una matriz que cruza patrones con tipos de aplicación. Insisten en que el esquema depende de cómo la aplicación accede a los datos.",
+    relacion: "Es la guía que pidió el profesor para el taller de patrones y de ahí salen los patrones de los casos de modelado. De los doce no usamos Approximation, Document Versioning, Pre-allocation ni Tree porque ningún caso los pedía."
+  },
+  {
+    autor: "MongoDB (documentación oficial)",
+    titulo: "Embedded Data Versus References y Limits and Thresholds",
+    hallazgo: "Embeber da mejores lecturas, trae los datos relacionados en una sola operación y permite actualizarlos en una escritura atómica. Referenciar conviene cuando los datos embebidos crecerían sin límite o se escriben en momentos distintos. Un documento no puede pasar de 16 MiB.",
+    relacion: "Por esta regla el chat de BountyLine quedó como un documento por mensaje y en el caso de domicilios las reseñas tienen su propia colección."
+  },
+  {
+    autor: "MongoDB (documentación oficial)",
+    titulo: "About Time Series Data",
+    hallazgo: "En las colecciones de series de tiempo MongoDB agrupa los documentos automáticamente en buckets por el valor del metaField y por tiempos cercanos, con un formato por columnas que reduce el almacenamiento y el tamaño de los índices.",
+    relacion: "Es el mismo patrón Bucket que hicimos a mano en el caso de calidad del aire, ya incorporado en el motor. Sirve como alternativa si el caso se implementara de verdad."
+  },
+  {
+    autor: "MongoDB (documentación oficial)",
+    titulo: "The ESR (Equality, Sort, Range) Guideline",
+    hallazgo: "En un índice compuesto van primero los campos de igualdad. Si se quiere evitar el ordenamiento en memoria, los campos de orden van antes que los de rango.",
+    relacion: "Con esta guía armamos el índice del punto 14 del taller de mflix y comparamos el explain antes (COLLSCAN) y después (IXSCAN)."
+  },
+  {
+    autor: "Mior, Salem, Aboulnaga y Liu (2017)",
+    titulo: "NoSE: Schema design for NoSQL applications",
+    hallazgo: "Señalan que quienes diseñan bases NoSQL se apoyan en reglas prácticas porque las herramientas de diseño relacional no sirven ahí. Proponen un sistema que recomienda el esquema a partir del modelo conceptual y de la carga de trabajo, con un modelo de costos y programación entera binaria. Lo probaron con Cassandra.",
+    relacion: "Lo que hicimos a mano en los casos (partir de las preguntas de negocio para decidir qué embeber) es lo que NoSE intenta automatizar."
+  },
+  {
+    autor: "Lima y Mello (2015, 2016)",
+    titulo: "Diseño lógico de bases NoSQL de documentos guiado por la carga de trabajo",
+    hallazgo: "Proponen convertir un esquema conceptual entidad-relación extendido en estructuras de documentos teniendo en cuenta el volumen estimado de datos y las consultas. En su evaluación con un caso de comercio electrónico, las estructuras generadas redujeron la cantidad de datos que tocaba cada consulta.",
+    relacion: "Es el paso que dimos en BountyLine: del modelo E-R extendido a las colecciones de MongoDB para la parte social."
+  },
+  {
+    autor: "Gessert, Wingerath, Friedrich y Ritter (2017)",
+    titulo: "NoSQL database systems: a survey and decision guidance",
+    hallazgo: "Clasifican los sistemas NoSQL por modelo de datos (clave-valor, documentos, columna ancha) y por los compromisos de CAP y PACELC. Con eso arman una caja de herramientas y un árbol de decisión para escoger un sistema según los requisitos de la aplicación.",
+    relacion: "Ayuda a justificar por qué MongoDB quedó para el contenido social de BountyLine y MySQL para los pagos."
+  },
+  {
+    autor: "Davoudian, Chen y Liu (2018)",
+    titulo: "A survey on NoSQL stores",
+    hallazgo: "Revisión en ACM Computing Surveys que explica las decisiones de diseño de los almacenes NoSQL a partir de principios de los sistemas distribuidos, entre ellos el modelo de datos y el modelo de consistencia.",
+    relacion: "Da el contexto teórico de por qué un modelo de documentos cambia la forma de diseñar frente al relacional."
+  },
+  {
+    autor: "Sadalage y Fowler (2012)",
+    titulo: "NoSQL distilled",
+    hallazgo: "Presentan la persistencia políglota: usar en una misma aplicación el motor que mejor se ajuste a cada tipo de dato.",
+    relacion: "Es la base de la arquitectura de BountyLine, con MySQL y MongoDB juntos."
+  }
+];
+
+const referencias = [
+  { text: "Bradshaw, S., Brazil, E. y Chodorow, K. (2019). MongoDB: The definitive guide (3.ª ed.). O'Reilly Media." },
+  { text: "Coupal, D. y Alger, K. W. (2019). Building with patterns: A summary. MongoDB.", url: "https://www.mongodb.com/company/blog/building-with-patterns-a-summary" },
+  { text: "Coupal, D. y Alger, K. W. (2019). Building with patterns: The bucket pattern. MongoDB.", url: "https://www.mongodb.com/blog/post/building-with-patterns-the-bucket-pattern" },
+  { text: "Davoudian, A., Chen, L. y Liu, M. (2018). A survey on NoSQL stores. ACM Computing Surveys, 51(2), 1-43.", url: "https://doi.org/10.1145/3158661" },
+  { text: "Gessert, F., Wingerath, W., Friedrich, S. y Ritter, N. (2017). NoSQL database systems: A survey and decision guidance. Computer Science - Research and Development, 32(3-4), 353-365.", url: "https://doi.org/10.1007/s00450-016-0334-3" },
+  { text: "Lima, C. de y Mello, R. dos S. (2015). A workload-driven logical design approach for NoSQL document databases. En Proceedings of the 17th International Conference on Information Integration and Web-based Applications & Services (iiWAS). ACM.", url: "https://doi.org/10.1145/2837185.2837218" },
+  { text: "Lima, C. y Mello, R. S. (2016). On proposing and evaluating a NoSQL document database logical approach. International Journal of Web Information Systems, 12(4), 398-417.", url: "https://doi.org/10.1108/IJWIS-04-2016-0018" },
+  { text: "Mior, M. J., Salem, K., Aboulnaga, A. y Liu, R. (2017). NoSE: Schema design for NoSQL applications. IEEE Transactions on Knowledge and Data Engineering, 29(10), 2275-2289.", url: "https://doi.org/10.1109/TKDE.2017.2722412" },
+  { text: "MongoDB. (s. f.). Embedded data versus references. MongoDB Manual.", url: "https://www.mongodb.com/docs/v7.0/data-modeling/concepts/embedding-vs-references/" },
+  { text: "MongoDB. (s. f.). MongoDB limits and thresholds. MongoDB Manual.", url: "https://www.mongodb.com/docs/v8.0/reference/limits/" },
+  { text: "MongoDB. (s. f.). The ESR (Equality, Sort, Range) guideline. MongoDB Manual.", url: "https://www.mongodb.com/docs/manual/tutorial/equality-sort-range-guideline/" },
+  { text: "MongoDB. (s. f.). About time series data. MongoDB Manual.", url: "https://www.mongodb.com/docs/manual/core/timeseries/timeseries-bucketing/" },
+  { text: "MongoDB. (s. f.). Schema design patterns. MongoDB Manual.", url: "https://www.mongodb.com/docs/v8.0/data-modeling/design-patterns/" },
+  { text: "Sadalage, P. J. y Fowler, M. (2012). NoSQL distilled: A brief guide to the emerging world of polyglot persistence. Addison-Wesley." }
+];
 ---
 
-<Layout title="NoSQL | Evidencias">
-
+<Layout
+  title="NoSQL | Evidencias"
+  description="Talleres de MongoDB y MQL, patrones de modelado de documentos, investigaciones relacionadas y conclusiones de Bases de Datos 2."
+>
   <div class="px-6 lg:px-12 pt-16 pb-20">
     <div class="max-w-5xl mx-auto">
 
@@ -16,7 +295,7 @@ import { withBase } from "@/lib/assetPath";
         ← Volver a Evidencias
       </a>
 
-      <div class="mt-10">
+      <div class="mt-10 mb-14">
         <span
           class="text-xs font-mono uppercase tracking-[3px]"
           style="color: var(--color-primary);"
@@ -28,17 +307,262 @@ import { withBase } from "@/lib/assetPath";
           NoSQL
         </h1>
 
-        <p class="text-site-text-muted text-lg max-w-2xl">
-          Espacio para ejercicios y trabajos relacionados con bases de datos
-          NoSQL.
+        <p class="text-site-text-muted text-lg max-w-3xl leading-relaxed">
+          Lo que hice con MongoDB y MQL en Bases de Datos 2: los talleres sobre
+          los datasets de ejemplo de Atlas, los patrones de modelado de
+          documentos que aplicamos, lo que dicen las investigaciones sobre el
+          tema y las conclusiones a las que llegué.
         </p>
       </div>
 
-      <div class="mt-10 p-8 rounded-2xl border border-site-border bg-site-surface/30 text-center">
-        <p class="text-site-muted font-mono">
-          Próximamente — aquí se agregarán las evidencias.
-        </p>
+      <!-- Índice de talleres -->
+      <div class="mb-16">
+        <SectionHeading eyebrow="Talleres" title="Trabajos realizados" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {talleres.map((t) => (
+            <a
+              href={`#${t.id}`}
+              class="group p-6 rounded-2xl border border-site-border bg-site-surface/30 hover:bg-site-surface/50 hover:border-electric-blue/40 transition-all duration-300"
+            >
+              <span
+                class="inline-flex px-3 py-1 rounded-md text-xs font-mono font-semibold border mb-5"
+                style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.25);"
+              >
+                {t.label}
+              </span>
+              <h3 class="font-display font-bold text-xl text-white mb-3">{t.title}</h3>
+              <p class="text-site-muted leading-relaxed">{t.description}</p>
+            </a>
+          ))}
+        </div>
       </div>
+
+      <!-- Taller airbnb -->
+      <section class="mb-16">
+        <SectionHeading id="taller-airbnb" eyebrow="Taller 1 · sample_airbnb" title="CRUD y consultas en MQL" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          <p>
+            El taller tenía 30 ejercicios sobre la colección listingsAndReviews
+            y lo hicimos entre tres (Gabriella Castro, Lina Patiño y yo). Empezaba
+            con insertOne e insertMany, incluyendo objetos anidados y arreglos,
+            y un ejercicio para provocar a propósito el error E11000 al insertar
+            un _id que ya existía. Después venían consultas con find sobre
+            campos anidados ("address.country"), $gt, $lt, $in, expresiones
+            regulares, $size sobre arreglos y ordenamientos.
+          </p>
+          <p>
+            La segunda mitad era de escritura y agregación: $set, $push, $inc,
+            $pull, upsert, $unwind con $group para contar amenities, $bucket
+            para rangos de precio y un $lookup teórico contra una colección
+            hosts que no existe en el dataset. En la entrega cada ejercicio
+            lleva su script, el pantallazo y las dificultades que encontramos.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <CodeBlock label="updateMany con $pull" code={airbnbPull} />
+          <CodeBlock label="upsert" code={airbnbUpsert} />
+        </div>
+        <div class="mt-5">
+          <CodeBlock label="$unwind + $group" code={airbnbTop} />
+        </div>
+        <div class="mt-6 p-6 rounded-2xl border border-site-border bg-site-surface/30">
+          <h3 class="font-display font-bold text-lg text-white mb-3">Lo que me dejó</h3>
+          <p class="text-site-muted leading-relaxed">
+            MongoDB no valida la forma del documento si no se le pone un
+            validador, así que un campo mal escrito se inserta sin avisar. Los
+            tipos importan: price está guardado como Decimal128 y $toInt corta
+            los decimales en vez de redondear. Y $unwind multiplica los
+            documentos que pasan por el pipeline, por eso conviene filtrar antes.
+          </p>
+        </div>
+      </section>
+
+      <!-- Taller mflix -->
+      <section class="mb-16">
+        <SectionHeading id="taller-mflix" eyebrow="Taller 2 · sample_mflix" title="Agregación, índices y modelado" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          <p>
+            Este taller era en pareja, con 30% para la entrega y 70% para la
+            sustentación, donde el profesor podía pedir cambiar una consulta en
+            vivo. Tenía cuatro partes. La A eran consultas con find (Drama entre
+            2000 y 2010, Tom Hanks sin Spielberg, exactamente tres géneros con
+            $size y $all, una expresión regular). La B eran pipelines de
+            agregación, entre ellos el top 10 de películas más comentadas con
+            $lookup entre comments y movies.
+          </p>
+          <p>
+            La parte C tocaba escritura e índices: crear peliculas_pareja con
+            $merge y una categoría calculada con $switch, actualizar y borrar
+            por categoría y comparar con explain("executionStats") la misma
+            consulta antes y después de un índice compuesto. La parte D era de
+            modelado: tres casos (domicilios, calidad del aire y una red social
+            universitaria) con su diagrama, un JSON por colección, los patrones
+            aplicados, los índices y dos consultas de negocio por caso.
+          </p>
+        </div>
+        <div class="space-y-5">
+          <CodeBlock label="$lookup después de limitar" code={mflixLookup} />
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <CodeBlock label="$switch + $merge" code={mflixSwitch} />
+            <CodeBlock label="Índice ESR + explain" code={mflixIndex} />
+          </div>
+        </div>
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div class="p-6 rounded-2xl border border-site-border bg-site-surface/30">
+            <h3 class="font-display font-bold text-lg text-white mb-3">Un error que encontré</h3>
+            <p class="text-site-muted leading-relaxed">
+              imdb.rating tiene valores vacíos (""). En una expresión, MongoDB
+              ordena los textos por encima de los números, entonces $switch
+              mandaba esas películas a la categoría "Alta". Por eso el $match
+              filtra primero con $type: "number".
+            </p>
+          </div>
+          <div class="p-6 rounded-2xl border border-site-border bg-site-surface/30">
+            <h3 class="font-display font-bold text-lg text-white mb-3">Orden del pipeline</h3>
+            <p class="text-site-muted leading-relaxed">
+              En el punto 9 agrupar y limitar antes del $lookup hace que el join
+              se haga para 10 películas. Si el $lookup va primero, se hace para
+              cada comentario de la colección.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Taller restaurants -->
+      <section class="mb-16">
+        <SectionHeading id="taller-restaurants" eyebrow="Práctica · sample_restaurants" title="Consultas sobre restaurantes" />
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          Una práctica corta de tres puntos: listar los restaurantes italianos
+          de Brooklyn, contar restaurantes por tipo de cocina y sacar los cinco
+          barrios (borough) con más restaurantes. Sirvió para repasar la
+          diferencia entre un find con proyección y un $group con $project y
+          $sort.
+        </p>
+        <CodeBlock label="sample_restaurants" code={restaurants} />
+      </section>
+
+      <!-- Taller patrones -->
+      <section class="mb-16">
+        <SectionHeading id="taller-patrones" eyebrow="Taller 3 · Video" title="Patrones de modelado de documentos" />
+        <p class="text-site-text-muted leading-relaxed max-w-3xl">
+          En este taller había que grabar en grupo un video de 12 a 13 minutos,
+          publicado en YouTube, que explicara cada patrón de la serie Building
+          with Patterns de MongoDB: qué es, cuándo usarlo frente al modelo
+          relacional y un ejemplo en JSON relacionado con el proyecto. Los
+          patrones que trabajamos ahí y en la parte D del taller de mflix están
+          en la siguiente sección.
+        </p>
+      </section>
+
+      <!-- Patrones -->
+      <section class="mb-16">
+        <SectionHeading id="patrones" eyebrow="Modelado" title="Patrones que aplicamos" />
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          Estos son los patrones que usamos en los casos de modelado y en
+          BountyLine. Para cada uno pongo qué problema resuelve, dónde lo
+          aplicamos y qué pasaría sin él, que era lo que pedía el taller.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {patrones.map((p) => (
+            <div class="p-6 rounded-2xl border border-site-border bg-site-surface/30 hover:border-electric-blue/40 transition-all duration-300">
+              <span
+                class="inline-flex px-3 py-1 rounded-md text-xs font-mono font-semibold border mb-4"
+                style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.25);"
+              >
+                {p.nombre}
+              </span>
+              <p class="text-site-text text-sm leading-relaxed mb-4">{p.problema}</p>
+              <p class="text-xs font-mono uppercase tracking-widest text-site-muted mb-1">Dónde lo usamos</p>
+              <p class="text-site-muted text-sm leading-relaxed mb-4">{p.uso}</p>
+              <p class="text-xs font-mono uppercase tracking-widest text-site-muted mb-1">Sin el patrón</p>
+              <p class="text-site-muted text-sm leading-relaxed">{p.sinEl}</p>
+            </div>
+          ))}
+        </div>
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
+          <div class="lg:col-span-2 p-6 rounded-2xl border border-site-border bg-site-surface/30">
+            <h3 class="font-display font-bold text-lg text-white mb-3">Varios patrones en un documento</h3>
+            <p class="text-site-muted leading-relaxed">
+              Los patrones se combinan. Un solo bucket del caso de calidad del
+              aire usa cuatro: Bucket para agrupar la hora, Computed para el
+              resumen y las alertas, Schema Versioning para el CO2 y Extended
+              Reference para la localidad.
+            </p>
+          </div>
+          <div class="lg:col-span-3">
+            <CodeBlock label="lecturas_hora" code={bucketJson} />
+          </div>
+        </div>
+      </section>
+
+      <!-- Investigaciones -->
+      <section class="mb-16">
+        <SectionHeading id="investigaciones" eyebrow="Investigación" title="Qué dicen las fuentes" />
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          Además de la documentación de MongoDB revisé trabajos académicos
+          sobre diseño de esquemas NoSQL. Cada tarjeta resume qué encontraron y
+          cómo se conecta con lo que hicimos.
+        </p>
+        <div class="space-y-5">
+          {investigaciones.map((inv) => (
+            <div class="p-6 rounded-2xl border border-site-border bg-site-surface/30">
+              <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3">
+                <span class="text-xs font-mono" style="color: var(--color-primary);">{inv.autor}</span>
+                <h3 class="font-display font-bold text-lg text-white">{inv.titulo}</h3>
+              </div>
+              <p class="text-site-muted leading-relaxed mb-3">{inv.hallazgo}</p>
+              <p class="text-sm text-site-text leading-relaxed pl-4 border-l" style="border-color: rgb(var(--primary-ch) / 0.4);">
+                {inv.relacion}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- Conclusiones -->
+      <section class="mb-16">
+        <SectionHeading id="conclusiones" eyebrow="Cierre" title="Conclusiones" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
+          <p>
+            En MongoDB el diseño empieza por las consultas. En los tres casos de
+            modelado primero escribimos las preguntas de negocio y de ahí salió
+            qué embeber, qué copiar y qué dejar en otra colección. Las
+            investigaciones de Mior et al. y de Lima y Mello llegan a lo mismo
+            desde otro lado: intentan automatizar ese diseño a partir de la
+            carga de trabajo.
+          </p>
+          <p>
+            Embeber es la opción por defecto mientras el arreglo tenga un
+            tope. Cuando no lo tiene (reseñas, seguidores, mensajes de chat) hay
+            que cortar con Subset, Outlier o una colección aparte, porque el
+            límite de 16 MiB aparece antes de lo que uno cree.
+          </p>
+          <p>
+            Duplicar datos acelera las lecturas pero obliga a mantener las
+            copias. Extended Reference y Computed funcionan bien cuando el dato
+            copiado casi no cambia o cuando la copia debe quedarse congelada,
+            como el precio de un plato en un pedido ya pagado.
+          </p>
+          <p>
+            Los índices hay que medirlos. Con explain se ve el cambio de
+            COLLSCAN a IXSCAN y cómo bajan los documentos examinados, y la regla
+            ESR explica por qué el orden de los campos del índice importa.
+          </p>
+          <p>
+            Que MongoDB no exija esquema no quiere decir que no haya que
+            pensarlo. Los valores vacíos en imdb.rating y los precios en
+            Decimal128 dieron más problemas que cualquier operador, y en
+            BountyLine terminamos poniendo validadores $jsonSchema a todas las
+            colecciones.
+          </p>
+        </div>
+      </section>
+
+      <!-- Referencias -->
+      <section>
+        <SectionHeading id="referencias" eyebrow="Fuentes" title="Referencias" />
+        <References items={referencias} />
+      </section>
 
     </div>
   </div>

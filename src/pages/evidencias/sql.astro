@@ -1,12 +1,119 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Footer from "@/components/Footer.astro";
+import SectionHeading from "@/components/evidencias/SectionHeading.astro";
+import CodeBlock from "@/components/evidencias/CodeBlock.astro";
+import References from "@/components/evidencias/References.astro";
 import { withBase } from "@/lib/assetPath";
+
+const filtros = `
+-- Empleados de los departamentos 50, 60 y 80, del salario más alto al más bajo
+SELECT last_name, salary
+  FROM empleado
+ WHERE department_id IN (50, 60, 80)
+ ORDER BY salary DESC;
+
+-- Empleados cuyo nombre empieza por M
+SELECT *
+  FROM empleado
+ WHERE first_name LIKE 'M%';
+`;
+
+const agrupacion = `
+-- Departamentos con más de 3 empleados: cantidad, total y promedio de salario
+SELECT COUNT(*), SUM(salary), AVG(salary)
+  FROM empleado
+ WHERE department_id IS NOT NULL
+ GROUP BY department_id
+HAVING COUNT(*) > 3;
+
+-- Departamentos cuyo salario promedio pasa de 7000
+SELECT AVG(salary)
+  FROM empleado
+ WHERE department_id IS NOT NULL
+ GROUP BY department_id
+HAVING AVG(salary) > 7000;
+`;
+
+const subconsultas = `
+-- Empleados que ganan más que el promedio de la empresa
+SELECT *
+  FROM empleado
+ WHERE salary > (SELECT AVG(salary) FROM empleado);
+
+-- Empleados con el mismo salario que alguien de apellido King
+SELECT *
+  FROM empleado
+ WHERE salary IN (SELECT salary FROM empleado WHERE last_name = 'King');
+`;
+
+const ventana = `
+SELECT last_name, salary,
+       SUM(salary) OVER (ORDER BY salary
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS acum_rows,
+       SUM(salary) OVER (ORDER BY salary
+            RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS acum_range
+  FROM employees
+ WHERE department_id = 90
+ ORDER BY salary;
+`;
+
+const ddl = `
+CREATE TABLE mision (
+    id_mision           INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    id_usuario          INT UNSIGNED  NOT NULL,
+    id_zona             INT UNSIGNED  NOT NULL,
+    id_especialidad     INT UNSIGNED  NOT NULL,
+    id_cazarrecompensas INT UNSIGNED  NULL,
+    titulo              VARCHAR(120)  NOT NULL,
+    monto_recompensa    DECIMAL(12,2) NOT NULL,
+    estado              VARCHAR(15)   NOT NULL DEFAULT 'PUBLICADA',
+    fecha_publicacion   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_cierre        DATETIME      NULL,
+    -- ...
+    CONSTRAINT pk_mision PRIMARY KEY (id_mision),
+    CONSTRAINT fk_mision_usuario FOREIGN KEY (id_usuario) REFERENCES usuario (id_usuario),
+    CONSTRAINT ck_mision_monto CHECK (monto_recompensa > 0),
+    CONSTRAINT ck_mision_estado CHECK (estado IN ('PUBLICADA', 'ASIGNADA', 'EN_CURSO', 'CERRADA', 'CANCELADA')),
+    CONSTRAINT ck_mision_cierre CHECK (fecha_cierre IS NULL OR fecha_cierre >= fecha_publicacion)
+) ENGINE = InnoDB;
+`;
+
+const vista = `
+CREATE OR REPLACE VIEW v_mision_detalle AS
+SELECT m.id_mision, m.titulo, m.monto_recompensa, m.estado,
+       cu.alias AS alias_usuario,
+       z.nombre AS zona,
+       e.nombre AS especialidad,
+       cc.alias AS alias_cazarrecompensas,
+       (SELECT COUNT(*) FROM postulacion p WHERE p.id_mision = m.id_mision) AS postulaciones
+  FROM mision m
+  JOIN cuenta cu      ON cu.id_cuenta = m.id_usuario
+  JOIN zona z         ON z.id_zona = m.id_zona
+  JOIN especialidad e ON e.id_especialidad = m.id_especialidad
+  LEFT JOIN cuenta cc ON cc.id_cuenta = m.id_cazarrecompensas;
+`;
+
+const conceptos = [
+  { titulo: "WHERE y HAVING", texto: "WHERE filtra filas antes de agrupar. HAVING filtra los grupos ya formados, por eso es el único que puede usar COUNT o AVG en la condición." },
+  { titulo: "Subconsultas", texto: "Con = la subconsulta debe devolver un solo valor. Si puede devolver varios, como los salarios de todos los King, toca usar IN." },
+  { titulo: "Funciones de ventana", texto: "Calculan un agregado por fila sin colapsar el resultado como hace GROUP BY. Se procesan después de WHERE, GROUP BY y HAVING." },
+  { titulo: "ROWS y RANGE", texto: "ROWS cuenta filas físicas. RANGE cuenta valores, entonces las filas empatadas en el ORDER BY reciben el mismo acumulado." },
+  { titulo: "Restricciones CHECK", texto: "Dejan en la tabla reglas como monto positivo o estados válidos, para que ninguna aplicación pueda guardar un dato que las rompa." },
+  { titulo: "Vistas", texto: "Guardan un join que se repite. En BountyLine v_mision_detalle junta cada misión con su usuario, zona, especialidad y cazarrecompensas." }
+];
+
+const referencias = [
+  { text: "Codd, E. F. (1970). A relational model of data for large shared data banks. Communications of the ACM, 13(6), 377-387.", url: "https://doi.org/10.1145/362384.362685" },
+  { text: "Elmasri, R. y Navathe, S. B. (2016). Fundamentals of database systems (7.ª ed.). Pearson." },
+  { text: "Oracle. (s. f.). Analytic functions. Oracle Database SQL Language Reference.", url: "https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Analytic-Functions.html" },
+  { text: "Silberschatz, A., Korth, H. F. y Sudarshan, S. (2019). Database system concepts (7.ª ed.). McGraw-Hill Education." }
+];
 ---
 
 <Layout
   title="SQL | Evidencias"
-  description="Evidencias de SQL de Julian Samuel Rodriguez Hernandez."
+  description="Evidencias de SQL de Julian Samuel Rodriguez Hernandez: SQL avanzado sobre el esquema HR y el modelo relacional de BountyLine."
 >
   <div class="px-6 lg:px-12 pt-16 pb-20">
     <div class="max-w-5xl mx-auto">
@@ -18,7 +125,7 @@ import { withBase } from "@/lib/assetPath";
         ← Volver a Evidencias
       </a>
 
-      <div class="mt-10">
+      <div class="mt-10 mb-14">
         <span
           class="text-xs font-mono uppercase tracking-[3px]"
           style="color: var(--color-primary);"
@@ -30,17 +137,114 @@ import { withBase } from "@/lib/assetPath";
           SQL
         </h1>
 
-        <p class="text-site-text-muted text-lg max-w-2xl">
-          En este espacio publicaré consultas, ejercicios y trabajos
-          relacionados con SQL.
+        <p class="text-site-text-muted text-lg max-w-3xl leading-relaxed">
+          SQL avanzado fue uno de los temas de Bases de Datos 2, junto con PL/SQL y MQL. En esta página van las
+          consultas de práctica sobre el esquema HR de Oracle y la parte de SQL
+          del proyecto final, donde el modelo relacional de BountyLine quedó en
+          MySQL.
         </p>
       </div>
 
-      <div class="mt-10 p-8 rounded-2xl border border-site-border bg-site-surface/30 text-center">
-        <p class="text-site-muted font-mono">
-          Próximamente — aquí se agregarán las evidencias.
+      <!-- Práctica -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Práctica · Esquema HR" title="Consultas de SQL avanzado" />
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          Las consultas van sobre una copia de la tabla de empleados del esquema
+          de ejemplo HR. Van de lo básico (filtros y ordenamiento) a la
+          agregación con GROUP BY y HAVING, las subconsultas y las funciones de
+          ventana.
         </p>
-      </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <CodeBlock label="Filtros y orden" code={filtros} />
+          <CodeBlock label="Subconsultas" code={subconsultas} />
+        </div>
+        <div class="mt-5">
+          <CodeBlock label="GROUP BY y HAVING" code={agrupacion} />
+        </div>
+      </section>
+
+      <!-- Ventana -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Funciones de ventana" title="ROWS frente a RANGE" />
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
+          <div class="lg:col-span-3">
+            <CodeBlock label="Salario acumulado del departamento 90" code={ventana} />
+          </div>
+          <div class="lg:col-span-2 p-6 rounded-2xl border border-site-border bg-site-surface/30">
+            <h3 class="font-display font-bold text-lg text-white mb-3">Dónde se nota la diferencia</h3>
+            <p class="text-site-muted leading-relaxed">
+              En el departamento 90 hay dos empleados con el mismo salario.
+              Con ROWS el acumulado sube de fila en fila, así que el primero
+              de los dos muestra un valor y el segundo otro. Con RANGE los dos
+              son pares en el ORDER BY y reciben el mismo acumulado, que ya
+              incluye a ambos.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- BountyLine -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Proyecto · MySQL" title="SQL en BountyLine" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          <p>
+            En el proyecto final la parte transaccional va en MySQL: 14 tablas
+            con llaves foráneas, restricciones CHECK e índices, más tres vistas
+            que usa la API. El script de creación deja las reglas de dominio en
+            la propia tabla, como que el monto de una misión sea positivo o que
+            la fecha de cierre no quede antes de la de publicación.
+          </p>
+        </div>
+        <div class="space-y-5">
+          <CodeBlock label="Tabla mision (resumida)" code={ddl} />
+          <CodeBlock label="Vista v_mision_detalle" code={vista} />
+        </div>
+        <a
+          href={withBase("/evidencias/proyecto")}
+          class="inline-block mt-6 text-sm font-mono"
+          style="color: var(--color-primary);"
+        >
+          Ver el proyecto completo →
+        </a>
+      </section>
+
+      <!-- Conceptos -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Conceptos" title="Lo importante" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {conceptos.map((c) => (
+            <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20 hover:bg-site-surface/40 hover:border-electric-blue/40 transition-all duration-300">
+              <h3 class="font-display font-bold text-sm text-white uppercase tracking-wide mb-2">{c.titulo}</h3>
+              <p class="text-sm text-site-muted leading-relaxed">{c.texto}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- Conclusiones -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Cierre" title="Conclusiones" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
+          <p>
+            Las funciones de ventana resuelven en una consulta cosas que antes
+            pedían una subconsulta por fila, como un acumulado o un ranking. El
+            detalle de ROWS y RANGE parece menor hasta que aparecen valores
+            repetidos.
+          </p>
+          <p>
+            En el proyecto las restricciones CHECK y las llaves foráneas
+            hicieron parte del trabajo que normalmente se deja a la aplicación.
+            Si un dato inválido no puede entrar a la tabla, no hay que revisarlo
+            en cada pantalla.
+          </p>
+        </div>
+      </section>
+
+      <!-- Referencias -->
+      <section>
+        <SectionHeading eyebrow="Fuentes" title="Referencias" />
+        <References items={referencias} />
+      </section>
 
     </div>
   </div>

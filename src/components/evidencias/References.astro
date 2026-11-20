@@ -1,0 +1,32 @@
+---
+interface Ref {
+  text: string;
+  url?: string;
+}
+interface Props {
+  items: Ref[];
+}
+const { items } = Astro.props;
+---
+
+<ol class="space-y-3">
+  {items.map((ref) => (
+    <li class="text-sm text-site-text-muted leading-relaxed pl-4 border-l border-site-border">
+      {ref.text}
+      {ref.url && (
+        <>
+          {" "}
+          <a
+            href={ref.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-mono break-all hover:text-white transition-colors"
+            style="color: var(--color-primary);"
+          >
+            {ref.url}
+          </a>
+        </>
+      )}
+    </li>
+  ))}
+</ol>

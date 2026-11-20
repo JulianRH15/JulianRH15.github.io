@@ -1,0 +1,23 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+  id?: string;
+}
+const { eyebrow, title, id } = Astro.props;
+---
+
+<div id={id} class="scroll-mt-24 mb-6">
+  <div class="flex items-center gap-3 mb-3">
+    <div class="h-px w-8" style="background: var(--color-primary);"></div>
+    <span
+      class="text-xs font-mono font-semibold tracking-[3px] uppercase"
+      style="color: var(--color-primary);"
+    >
+      {eyebrow}
+    </span>
+  </div>
+  <h2 class="font-display font-bold text-2xl sm:text-3xl text-white uppercase tracking-wide">
+    {title}
+  </h2>
+</div>

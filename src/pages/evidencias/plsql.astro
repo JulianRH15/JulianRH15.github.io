@@ -1,11 +1,95 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Footer from "@/components/Footer.astro";
+import SectionHeading from "@/components/evidencias/SectionHeading.astro";
+import CodeBlock from "@/components/evidencias/CodeBlock.astro";
+import References from "@/components/evidencias/References.astro";
 import { withBase } from "@/lib/assetPath";
+
+const conceptos = [
+  { titulo: "Bloques", texto: "Todo programa PL/SQL se arma con DECLARE, BEGIN, EXCEPTION y END. Las variables con %TYPE toman el tipo de la columna y no se rompen si la tabla cambia." },
+  { titulo: "Cursores", texto: "Permiten recorrer fila por fila el resultado de una consulta. El cursor implícito de un SELECT INTO debe traer exactamente una fila o lanza una excepción." },
+  { titulo: "Excepciones", texto: "NO_DATA_FOUND y TOO_MANY_ROWS son las más comunes. Con RAISE_APPLICATION_ERROR se lanzan errores propios con un código entre -20000 y -20999." },
+  { titulo: "Procedimientos y funciones", texto: "La función devuelve un valor y se usa dentro de una expresión. El procedimiento ejecuta acciones y devuelve datos por parámetros OUT." },
+  { titulo: "Triggers", texto: "Se disparan antes o después de un INSERT, UPDATE o DELETE. Con :NEW y :OLD se comparan los valores de la fila que está cambiando." },
+  { titulo: "Transacciones", texto: "COMMIT confirma y ROLLBACK deshace. Dentro de un procedimiento esto permite que una operación de varios pasos pase completa o no pase." }
+];
+
+const equivalencias = [
+  { oracle: "EXCEPTION WHEN OTHERS THEN ROLLBACK", mysql: "DECLARE EXIT HANDLER FOR SQLEXCEPTION BEGIN ROLLBACK ... END" },
+  { oracle: "RAISE_APPLICATION_ERROR(-20001, '...')", mysql: "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '...'" },
+  { oracle: "RAISE (relanzar la excepción)", mysql: "RESIGNAL" },
+  { oracle: ":NEW.columna / :OLD.columna", mysql: "NEW.columna / OLD.columna" },
+  { oracle: "CREATE OR REPLACE PROCEDURE ... IS", mysql: "DROP PROCEDURE IF EXISTS + CREATE PROCEDURE con DELIMITER" }
+];
+
+const triggerMysql = `
+-- BountyLine (MySQL): impide saldos negativos
+CREATE TRIGGER trg_validar_saldo
+BEFORE UPDATE ON billetera
+FOR EACH ROW
+BEGIN
+    IF NEW.saldo_disponible < 0 OR NEW.saldo_retenido < 0 THEN
+        SIGNAL SQLSTATE '45000'
+           SET MESSAGE_TEXT = 'La operación dejaría un saldo negativo.';
+    END IF;
+END $$
+`;
+
+const triggerOracle = `
+-- La misma regla escrita en PL/SQL (ejemplo)
+CREATE OR REPLACE TRIGGER trg_validar_saldo
+BEFORE UPDATE ON billetera
+FOR EACH ROW
+BEGIN
+    IF :NEW.saldo_disponible < 0 OR :NEW.saldo_retenido < 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'La operación dejaría un saldo negativo.');
+    END IF;
+END;
+/
+`;
+
+const inmutable = `
+-- Los movimientos de dinero no se modifican ni se borran
+CREATE TRIGGER trg_movimiento_inmutable
+BEFORE UPDATE ON movimiento
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Los movimientos no se pueden modificar.';
+END $$
+
+CREATE TRIGGER trg_movimiento_no_borrar
+BEFORE DELETE ON movimiento
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Los movimientos no se pueden eliminar.';
+END $$
+`;
+
+const funcion = `
+CREATE FUNCTION fn_saldo_disponible(p_id_billetera INT UNSIGNED)
+RETURNS DECIMAL(12,2)
+READS SQL DATA
+BEGIN
+    DECLARE v_saldo DECIMAL(12,2);
+    SELECT saldo_disponible INTO v_saldo FROM billetera WHERE id_billetera = p_id_billetera;
+    RETURN IFNULL(v_saldo, 0);
+END $$
+`;
+
+const referencias = [
+  { text: "Oracle. (s. f.). Oracle Database PL/SQL language reference, 19c.", url: "https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/toc.htm" },
+  { text: "Oracle. (s. f.). Condition handling. MySQL 8.4 Reference Manual.", url: "https://dev.mysql.com/doc/refman/8.4/en/condition-handling.html" },
+  { text: "Oracle. (s. f.). SIGNAL statement. MySQL 8.4 Reference Manual.", url: "https://dev.mysql.com/doc/refman/8.4/en/signal.html" },
+  { text: "Elmasri, R. y Navathe, S. B. (2016). Fundamentals of database systems (7.ª ed.). Pearson." },
+  { text: "Silberschatz, A., Korth, H. F. y Sudarshan, S. (2019). Database system concepts (7.ª ed.). McGraw-Hill Education." }
+];
 ---
 
-<Layout title="PL/SQL Scripts | Evidencias">
-
+<Layout
+  title="PL/SQL Scripts | Evidencias"
+  description="Taller de PL/SQL en Oracle 19c y lógica procedural del proyecto BountyLine en MySQL."
+>
   <div class="px-6 lg:px-12 pt-16 pb-20">
     <div class="max-w-5xl mx-auto">
 
@@ -16,7 +100,7 @@ import { withBase } from "@/lib/assetPath";
         ← Volver a Evidencias
       </a>
 
-      <div class="mt-10">
+      <div class="mt-10 mb-14">
         <span
           class="text-xs font-mono uppercase tracking-[3px]"
           style="color: var(--color-primary);"
@@ -28,17 +112,145 @@ import { withBase } from "@/lib/assetPath";
           PL/SQL Scripts
         </h1>
 
-        <p class="text-site-text-muted text-lg max-w-2xl">
-          Espacio para scripts, procedimientos, funciones y ejercicios
-          desarrollados con PL/SQL.
+        <p class="text-site-text-muted text-lg max-w-3xl leading-relaxed">
+          PL/SQL es la extensión procedural de SQL en Oracle. En la materia
+          hicimos un taller en Oracle 19c, presentamos un parcial práctico y
+          después llevamos la misma forma de trabajar a MySQL en el proyecto
+          final.
         </p>
       </div>
 
-      <div class="mt-10 p-8 rounded-2xl border border-site-border bg-site-surface/30 text-center">
-        <p class="text-site-muted font-mono">
-          Próximamente — aquí se agregarán las evidencias.
-        </p>
-      </div>
+      <!-- Taller -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Taller · Oracle 19c" title="Inventario de una ferretería" />
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
+          <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20">
+            <p class="font-display font-bold text-3xl" style="color: var(--color-primary);">50</p>
+            <p class="text-xs font-mono uppercase tracking-widest text-site-muted mt-1">puntos en total</p>
+          </div>
+          <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20">
+            <p class="font-display font-bold text-3xl" style="color: var(--color-primary);">3</p>
+            <p class="text-xs font-mono uppercase tracking-widest text-site-muted mt-1">integrantes</p>
+          </div>
+          <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20">
+            <p class="font-display font-bold text-3xl" style="color: var(--color-primary);">8</p>
+            <p class="text-xs font-mono uppercase tracking-widest text-site-muted mt-1">puntos a mi cargo</p>
+          </div>
+        </div>
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
+          <p>
+            El taller partía de un esquema de inventario de una ferretería en
+            Oracle 19c, con un script de creación del esquema y una plantilla
+            para el entregable. Repartimos los puntos entre los tres
+            integrantes y a mí me tocaron del 3.1 al 3.5 y del 4.1 al 4.3.
+          </p>
+          <p>
+            Como había sustentación, armamos una guía punto por punto con lo
+            que pedía cada ejercicio, la solución que dimos y por qué escogimos
+            esa y no otra.
+          </p>
+          <p>
+            Después vino el parcial, que fue completamente práctico: un solo
+            ejercicio, más complicado que los del taller, sobre las tablas del
+            esquema HR de Oracle.
+          </p>
+        </div>
+      </section>
+
+      <!-- Conceptos -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Conceptos" title="Lo importante de PL/SQL" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {conceptos.map((c) => (
+            <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20 hover:bg-site-surface/40 hover:border-electric-blue/40 transition-all duration-300">
+              <h3 class="font-display font-bold text-sm text-white uppercase tracking-wide mb-2">{c.titulo}</h3>
+              <p class="text-sm text-site-muted leading-relaxed">{c.texto}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- BountyLine -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Proyecto · MySQL" title="La misma lógica en BountyLine" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          <p>
+            El proyecto final usa MySQL, pero la idea es la del taller: las
+            reglas de negocio quedan dentro de la base en 4 funciones, 24
+            procedimientos almacenados y 14 triggers. La sintaxis cambia y los
+            conceptos se mantienen. Abajo está un trigger del proyecto junto a
+            cómo se vería la misma regla en PL/SQL.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <CodeBlock label="MySQL" code={triggerMysql} />
+          <CodeBlock label="PL/SQL" code={triggerOracle} />
+        </div>
+        <div class="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <CodeBlock label="Movimientos inmutables" code={inmutable} />
+          <CodeBlock label="Función de saldo" code={funcion} />
+        </div>
+
+        <div class="mt-8 rounded-2xl border border-site-border overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-site-surface/50 text-left">
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Oracle PL/SQL</th>
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">MySQL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {equivalencias.map((e) => (
+                  <tr class="border-t border-site-border">
+                    <td class="px-4 py-3 font-mono text-site-text">{e.oracle}</td>
+                    <td class="px-4 py-3 font-mono text-site-muted">{e.mysql}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <a
+          href={withBase("/evidencias/proyecto")}
+          class="inline-block mt-6 text-sm font-mono"
+          style="color: var(--color-primary);"
+        >
+          Ver el procedimiento de cierre de misión en el proyecto →
+        </a>
+      </section>
+
+      <!-- Conclusiones -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Cierre" title="Conclusiones" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
+          <p>
+            Tener la lógica en la base sirve cuando hay reglas que nadie se
+            puede saltar, como que un saldo no quede negativo o que un
+            movimiento de dinero no se borre. Escritas como triggers, se
+            cumplen sin importar qué programa haga el UPDATE.
+          </p>
+          <p>
+            El manejo de errores es lo que más cuesta al principio. En Oracle
+            se resuelve con el bloque EXCEPTION y en MySQL con handlers, pero en
+            los dos casos lo importante es hacer ROLLBACK y devolver un mensaje
+            que la aplicación pueda mostrar.
+          </p>
+          <p>
+            Pasar de Oracle a MySQL mostró que lo que se aprende en PL/SQL no
+            depende del motor. Cambian palabras como RAISE_APPLICATION_ERROR o
+            SIGNAL, y las transacciones, los cursores y los triggers siguen
+            funcionando igual.
+          </p>
+        </div>
+      </section>
+
+      <!-- Referencias -->
+      <section>
+        <SectionHeading eyebrow="Fuentes" title="Referencias" />
+        <References items={referencias} />
+      </section>
 
     </div>
   </div>

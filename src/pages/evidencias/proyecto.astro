@@ -1,11 +1,139 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Footer from "@/components/Footer.astro";
+import SectionHeading from "@/components/evidencias/SectionHeading.astro";
+import CodeBlock from "@/components/evidencias/CodeBlock.astro";
+import References from "@/components/evidencias/References.astro";
 import { withBase } from "@/lib/assetPath";
+
+const repoUrl = "https://github.com/gabGABY006/BountyLine";
+
+const cifras = [
+  { valor: "14", texto: "tablas en MySQL" },
+  { valor: "24", texto: "procedimientos almacenados" },
+  { valor: "14", texto: "triggers" },
+  { valor: "3", texto: "colecciones en MongoDB" }
+];
+
+const capas = [
+  { label: "Presentación", titulo: "Angular", texto: "Interfaz web en TypeScript con pantallas para los tres roles: feed, mercado de misiones, billetera, chat, perfil y panel de administración." },
+  { label: "Aplicación", titulo: "Spring Boot", texto: "API REST en Java 21. Llama a los procedimientos de MySQL por JDBC y usa MongoTemplate para MongoDB. Seguridad con Spring Security y JWT." },
+  { label: "Datos relacionales", titulo: "MySQL 8.4", texto: "Corre en su propia máquina virtual con Ubuntu Server. Guarda cuentas, billeteras, misiones, pagos, calificaciones, reportes y auditoría." },
+  { label: "Datos de documentos", titulo: "MongoDB 8.0", texto: "Corre en otra máquina virtual. Guarda las publicaciones del feed, el chat de cada misión y la bitácora de actividad." }
+];
+
+const tablas = [
+  "cuenta", "usuario", "cazarrecompensas", "administrador", "billetera", "zona",
+  "especialidad", "cazarrecompensas_especialidad", "mision", "postulacion",
+  "movimiento", "calificacion", "reporte", "auditoria_cuenta"
+];
+
+const colecciones = [
+  { nombre: "publicaciones", contenido: "Publicaciones del feed con sus comentarios y reacciones embebidos.", indices: "fecha, etiquetas, zona, autor, misión y texto completo" },
+  { nombre: "mensajes_chat", contenido: "Un documento por mensaje del chat entre el usuario y el cazarrecompensas asignado.", indices: "misión + fecha, emisor" },
+  { nombre: "bitacora_actividad", contenido: "Eventos de uso: inicios de sesión, búsquedas con sus filtros y vistas de misiones o perfiles.", indices: "cuenta + fecha, tipo + fecha" }
+];
+
+const matchFn = `
+-- Puntaje de emparejamiento (0 a 100) entre un cazarrecompensas y una misión
+--   40 puntos si la zona base coincide con la de la misión
+--   hasta 40 según el nivel (1 a 5) en la especialidad requerida
+--   hasta 20 según la reputación (sin calificaciones cuenta como 3)
+RETURN IF(v_zona_caz = v_zona_mis, 40, 0)
+     + v_nivel * 8
+     + ROUND(IFNULL(v_rep, 3) * 4);
+`;
+
+const cerrarMision = `
+CREATE PROCEDURE sp_cerrar_mision(IN p_id_mision INT UNSIGNED, IN p_id_usuario INT UNSIGNED)
+BEGIN
+    ...
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+        SELECT id_usuario, estado, monto_recompensa, id_cazarrecompensas
+          INTO v_dueno, v_estado, v_monto, v_caz
+          FROM mision WHERE id_mision = p_id_mision FOR UPDATE;
+        IF v_estado <> 'EN_CURSO' THEN
+            SIGNAL SQLSTATE '45000'
+               SET MESSAGE_TEXT = 'Solo se pueden cerrar misiones en estado EN_CURSO.';
+        END IF;
+
+        UPDATE billetera SET saldo_retenido = saldo_retenido - v_monto WHERE id_billetera = v_bil_usuario;
+        UPDATE billetera SET saldo_disponible = saldo_disponible + v_monto WHERE id_billetera = v_bil_caz;
+
+        INSERT INTO movimiento (id_billetera, id_mision, tipo, monto, descripcion) VALUES
+            (v_bil_usuario, p_id_mision, 'PAGO', v_monto, CONCAT('Pago de la misión ', p_id_mision)),
+            (v_bil_caz, p_id_mision, 'COBRO', v_monto, CONCAT('Cobro de la misión ', p_id_mision));
+
+        UPDATE mision SET estado = 'CERRADA', fecha_cierre = NOW() WHERE id_mision = p_id_mision;
+    COMMIT;
+END
+`;
+
+const validador = `
+db.createCollection('publicaciones', {
+  validationLevel: 'strict',
+  validationAction: 'error',
+  validator: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['id_cuenta', 'alias', 'rol', 'texto', 'etiquetas', 'reacciones',
+                 'comentarios', 'estado_moderacion', 'fecha_publicacion'],
+      properties: {
+        id_cuenta: { bsonType: 'int', minimum: 1, description: 'id_cuenta del autor en MySQL' },
+        rol: { enum: ['USUARIO', 'CAZARRECOMPENSAS', 'ADMINISTRADOR'] },
+        texto: { bsonType: 'string', minLength: 1, maxLength: 1000 },
+        etiquetas: { bsonType: 'array', maxItems: 10, uniqueItems: true,
+                     items: { bsonType: 'string', pattern: '^[a-z0-9_]{2,30}$' } }
+        // ...
+      }
+    }
+  }
+});
+`;
+
+const etiquetas = `
+// Las tres etiquetas más usadas en cada zona
+db.publicaciones.aggregate([
+  { $match: { estado_moderacion: 'VISIBLE', id_zona: { $ne: null } } },
+  { $unwind: '$etiquetas' },
+  { $group: { _id: { zona: '$zona', etiqueta: '$etiquetas' }, usos: { $sum: 1 } } },
+  { $sort: { '_id.zona': 1, usos: -1 } },
+  { $group: { _id: '$_id.zona', etiquetas: { $push: { etiqueta: '$_id.etiqueta', usos: '$usos' } } } },
+  { $project: { _id: 0, zona: '$_id', top3: { $slice: ['$etiquetas', 3] } } },
+  { $sort: { zona: 1 } }
+]);
+`;
+
+const documentos = [
+  "Propuesta del proyecto (contexto, requerimientos, historias de usuario, casos de uso y casos de aceptación)",
+  "Diagrama C4 de componentes",
+  "Documento de supuestos, que el código referencia con comentarios Sxx",
+  "Documento de implementación en las máquinas virtuales",
+  "Acta de constitución del proyecto",
+  "Diccionario de datos"
+];
+
+const referencias = [
+  { text: "Chen, P. P. (1976). The entity-relationship model: Toward a unified view of data. ACM Transactions on Database Systems, 1(1), 9-36.", url: "https://doi.org/10.1145/320434.320440" },
+  { text: "Codd, E. F. (1970). A relational model of data for large shared data banks. Communications of the ACM, 13(6), 377-387.", url: "https://doi.org/10.1145/362384.362685" },
+  { text: "Elmasri, R. y Navathe, S. B. (2016). Fundamentals of database systems (7.ª ed.). Pearson." },
+  { text: "Bradshaw, S., Brazil, E. y Chodorow, K. (2019). MongoDB: The definitive guide (3.ª ed.). O'Reilly Media." },
+  { text: "Sadalage, P. J. y Fowler, M. (2012). NoSQL distilled: A brief guide to the emerging world of polyglot persistence. Addison-Wesley." },
+  { text: "Schwaber, K. y Sutherland, J. (2020). La guía de Scrum.", url: "https://scrumguides.org" },
+  { text: "Silberschatz, A., Korth, H. F. y Sudarshan, S. (2019). Database system concepts (7.ª ed.). McGraw-Hill Education." }
+];
 ---
 
-<Layout title="Proyecto | Evidencias">
-
+<Layout
+  title="Proyecto | Evidencias"
+  description="BountyLine, proyecto final de Bases de Datos 2: red social de recompensas con MySQL, MongoDB, Spring Boot y Angular."
+>
   <div class="px-6 lg:px-12 pt-16 pb-20">
     <div class="max-w-5xl mx-auto">
 
@@ -16,28 +144,279 @@ import { withBase } from "@/lib/assetPath";
         ← Volver a Evidencias
       </a>
 
-      <div class="mt-10">
+      <div class="mt-10 mb-12">
         <span
           class="text-xs font-mono uppercase tracking-[3px]"
           style="color: var(--color-primary);"
         >
-          Evidencias
+          Proyecto final · Bases de Datos 2
         </span>
 
         <h1 class="font-display font-bold text-4xl sm:text-5xl text-white mt-3 mb-5">
-          Proyecto
+          BountyLine
         </h1>
 
-        <p class="text-site-text-muted text-lg max-w-2xl">
-          Espacio para documentar el proyecto desarrollado durante el semestre.
+        <p class="text-site-text-muted text-lg max-w-3xl leading-relaxed mb-6">
+          Red social de recompensas para un videojuego de mundo abierto
+          ambientado en una ciudad futurista. Los jugadores publican lo que les
+          pasa, crean misiones con una recompensa en créditos y contratan a
+          otros jugadores, los cazarrecompensas, para resolverlas. Lo hice con
+          Gabriella Castro y Lina Patiño.
         </p>
+
+        <a
+          href={repoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-mono border transition-colors hover:text-white"
+          style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.35);"
+        >
+          Ver el repositorio en GitHub →
+        </a>
       </div>
 
-      <div class="mt-10 p-8 rounded-2xl border border-site-border bg-site-surface/30 text-center">
-        <p class="text-site-muted font-mono">
-          Próximamente — aquí se agregará el proyecto.
-        </p>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
+        {cifras.map((c) => (
+          <div class="p-5 rounded-xl border border-site-border/60 bg-site-surface/20">
+            <p class="font-display font-bold text-3xl" style="color: var(--color-primary);">{c.valor}</p>
+            <p class="text-xs font-mono uppercase tracking-widest text-site-muted mt-1">{c.texto}</p>
+          </div>
+        ))}
       </div>
+
+      <!-- Problema -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Contexto" title="El problema" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
+          <p>
+            Dentro del juego no había un canal formal para pedir ayuda, ni una
+            reputación que dijera qué jugadores son confiables. Tampoco había
+            trazabilidad de los pagos, ni algo que sugiriera al cazarrecompensas
+            adecuado según la zona y la especialidad.
+          </p>
+          <p>
+            Desde los datos el caso tenía dos caras. Los pagos, las misiones y
+            las calificaciones necesitan integridad estricta, porque un error
+            deja saldos inconsistentes. El contenido social, en cambio, tiene
+            mucho volumen y cambia de forma con facilidad. Por eso el proyecto
+            usa una base relacional y una de documentos al mismo tiempo, lo que
+            Sadalage y Fowler llaman persistencia políglota.
+          </p>
+        </div>
+      </section>
+
+      <!-- Flujo -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Solución" title="Cómo funciona" />
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          Hay tres tipos de cuenta: usuario, cazarrecompensas y administrador.
+          El recorrido de una misión es este:
+        </p>
+        <ol class="space-y-3 max-w-3xl">
+          {[
+            "El usuario crea una misión con zona, especialidad y monto. La base valida que tenga saldo y retiene el monto.",
+            "La base calcula un puntaje de emparejamiento y sugiere cazarrecompensas ordenados. El usuario también puede buscar con filtros.",
+            "Los cazarrecompensas se postulan, el usuario asigna a uno y se habilita el chat de la misión.",
+            "Al confirmar el cierre, en una sola transacción se libera el monto retenido, se le paga al cazarrecompensas y se registran los movimientos.",
+            "El usuario califica de 1 a 5 y un trigger actualiza la reputación del cazarrecompensas."
+          ].map((paso, i) => (
+            <li class="flex gap-4 p-4 rounded-xl border border-site-border/60 bg-site-surface/20">
+              <span class="font-mono text-sm font-semibold" style="color: var(--color-primary);">{String(i + 1).padStart(2, "0")}</span>
+              <span class="text-site-muted leading-relaxed">{paso}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <!-- Arquitectura -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Arquitectura" title="Capas del sistema" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {capas.map((c) => (
+            <div class="p-6 rounded-2xl border border-site-border bg-site-surface/30">
+              <span
+                class="inline-flex px-3 py-1 rounded-md text-xs font-mono font-semibold border mb-4"
+                style="color: var(--color-primary); border-color: rgb(var(--primary-ch) / 0.25);"
+              >
+                {c.label}
+              </span>
+              <h3 class="font-display font-bold text-xl text-white mb-2">{c.titulo}</h3>
+              <p class="text-site-muted leading-relaxed">{c.texto}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- MySQL -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="MySQL" title="Modelo relacional y lógica en la base" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          <p>
+            El modelo tiene 14 entidades. Cuenta es una superclase con
+            especialización total y disjunta en usuario, cazarrecompensas y
+            administrador, así que lo representamos con un modelo entidad-relación
+            extendido. Las tablas usan llaves foráneas, restricciones CHECK e
+            índices.
+          </p>
+          <p>
+            La lógica de negocio vive en la base: 4 funciones, 24 procedimientos
+            almacenados, 14 triggers y 3 vistas. El usuario con el que se
+            conecta la API (bountyline_app) solo puede consultar y ejecutar
+            procedimientos, entonces toda escritura pasa por esas reglas. Los
+            errores se lanzan con SIGNAL SQLSTATE '45000' y la API los devuelve
+            como un 400 con el mismo mensaje.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2 mb-8">
+          {tablas.map((t) => (
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono text-site-text border border-site-border/50 bg-site-surface/20">
+              <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background: var(--color-primary);"></span>
+              {t}
+            </span>
+          ))}
+        </div>
+        <div class="space-y-5">
+          <CodeBlock label="fn_puntaje_match" code={matchFn} />
+          <CodeBlock label="sp_cerrar_mision (resumido)" code={cerrarMision} />
+        </div>
+        <p class="text-site-muted leading-relaxed max-w-3xl mt-5">
+          El cierre de una misión es el mejor ejemplo de por qué esta parte va
+          en MySQL: debitar al usuario, acreditar al cazarrecompensas, registrar
+          dos movimientos y cambiar el estado tiene que pasar completo o no
+          pasar. El FOR UPDATE bloquea las filas mientras dura la transacción y
+          el handler hace ROLLBACK si algo falla.
+        </p>
+      </section>
+
+      <!-- MongoDB -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="MongoDB" title="Contenido social" />
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          En MongoDB va lo que se escribe y se lee con mucha frecuencia, cambia
+          de forma (nuevos tipos de reacción o de evento) y no necesita
+          transacciones entre varias entidades. Los documentos guardan el
+          id_cuenta y el id_mision de MySQL, y la aplicación revisa que existan
+          antes de escribir.
+        </p>
+        <div class="rounded-2xl border border-site-border overflow-hidden mb-6">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-site-surface/50 text-left">
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Colección</th>
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Contenido</th>
+                  <th class="px-4 py-3 font-mono text-xs uppercase tracking-widest" style="color: var(--color-primary);">Índices</th>
+                </tr>
+              </thead>
+              <tbody>
+                {colecciones.map((c) => (
+                  <tr class="border-t border-site-border">
+                    <td class="px-4 py-3 font-mono text-site-text whitespace-nowrap">{c.nombre}</td>
+                    <td class="px-4 py-3 text-site-muted">{c.contenido}</td>
+                    <td class="px-4 py-3 text-site-muted">{c.indices}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          <p>
+            Los comentarios van embebidos porque una publicación siempre se lee
+            con ellos, y así el feed no hace una consulta extra por cada
+            elemento. El chat es al revés: un documento por mensaje, para no
+            tener un arreglo que crece sin límite dentro de la misión. La
+            bitácora guarda eventos de distinta forma en la misma colección.
+            Cada colección tiene un validador $jsonSchema.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <CodeBlock label="Validador de publicaciones" code={validador} />
+          <CodeBlock label="Etiquetas más usadas por zona" code={etiquetas} />
+        </div>
+      </section>
+
+      <!-- Seguridad -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="API" title="Seguridad" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
+          <p>
+            El registro y el inicio de sesión devuelven un token JWT firmado con
+            el id de la cuenta, su alias y su rol. Las demás rutas piden ese
+            token y los permisos van por rol, así que un rol que no corresponde
+            recibe 403. Quién hace cada acción sale del token y no del cuerpo de
+            la petición.
+          </p>
+          <p>
+            Las contraseñas se guardan con BCrypt. Si un administrador suspende
+            una cuenta, su token deja de servir en la siguiente petición aunque
+            no haya vencido. Los administradores solo se crean por script.
+          </p>
+        </div>
+      </section>
+
+      <!-- Documentación y equipo -->
+      <section class="mb-16">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+          <div>
+            <SectionHeading eyebrow="Entregables" title="Documentación" />
+            <ul class="space-y-3">
+              {documentos.map((d) => (
+                <li class="flex gap-3 text-site-muted leading-relaxed">
+                  <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2.5" style="background: var(--color-primary);"></span>
+                  {d}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <SectionHeading eyebrow="Equipo" title="Mi parte" />
+            <div class="space-y-4 text-site-muted leading-relaxed">
+              <p>
+                El proyecto se organizó con Scrum y por fases. El repositorio
+                tiene una carpeta por capa (front, back y bd) y la rama main
+                guarda lo estable.
+              </p>
+              <p>
+                La sustentación son 20 minutos de exposición y 10 de preguntas,
+                y el profesor evalúa el sistema completo. Yo presento la parte
+                de MongoDB hasta la lámina anterior a la demo del producto.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Conclusiones -->
+      <section class="mb-16">
+        <SectionHeading eyebrow="Cierre" title="Conclusiones" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
+          <p>
+            Usar dos motores tiene sentido cuando los datos de verdad son
+            distintos. En BountyLine la billetera necesita ACID y el feed
+            necesita flexibilidad. Meter cualquiera de los dos en el otro motor
+            habría obligado a resolver en código lo que cada motor ya trae.
+          </p>
+          <p>
+            Poner la lógica en procedimientos y triggers hizo que la API fuera
+            delgada. Como el usuario de la aplicación solo puede ejecutar
+            procedimientos, ninguna regla de saldo o de estado se puede saltar
+            desde Java.
+          </p>
+          <p>
+            Lo que más se aprende es en las fronteras: cómo guardar en MongoDB
+            una referencia a una cuenta de MySQL sin llave foránea, o cómo
+            convertir un SIGNAL de la base en un error HTTP entendible para el
+            frontend.
+          </p>
+        </div>
+      </section>
+
+      <!-- Referencias -->
+      <section>
+        <SectionHeading eyebrow="Fuentes" title="Referencias" />
+        <References items={referencias} />
+      </section>
 
     </div>
   </div>
