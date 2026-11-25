@@ -140,7 +140,8 @@ SELECT SUM(monto) FROM bountyline.movimiento WHERE tipo = 'PAGO';
           símbolos $ del archivo de configuración del backend, que casi toda la
           lógica del negocio esté en un solo lado y que la propuesta de ETL
           necesitaba explicarse mejor. Aquí va cada una con lo que significa y
-          cómo se arregla.
+          cómo se arregla. También reviso qué índices probaría en MySQL y por
+          qué guardamos el contenido social en MongoDB.
         </p>
       </div>
 
@@ -148,7 +149,9 @@ SELECT SUM(monto) FROM bountyline.movimiento WHERE tipo = 'PAGO';
         {[
           { id: "propiedades", n: "01", t: "Los $ del application.properties" },
           { id: "logica", n: "02", t: "Toda la lógica en un solo lado" },
-          { id: "etl", n: "03", t: "La propuesta de ETL" }
+          { id: "etl", n: "03", t: "La propuesta de ETL" },
+          { id: "indices-mysql", n: "04", t: "Índices que probaría en MySQL" },
+          { id: "datos-mongodb", n: "05", t: "Qué guardamos en MongoDB y por qué" }
         ].map((c) => (
           <a
             href={`#${c.id}`}
@@ -450,6 +453,36 @@ SELECT SUM(monto) FROM bountyline.movimiento WHERE tipo = 'PAGO';
           la base dice 'PAGO', el resultado sale en cero sin ningún error.
         </p>
         <CodeBlock label="Validación de la carga" code={validacion} />
+      </section>
+
+      <section class="mb-16">
+        <SectionHeading id="indices-mysql" eyebrow="Diseño de datos · 04" title="Índices que probaría en MySQL" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          <p>El esquema ya incluye <code>ix_mision_estado</code> sobre el estado y la fecha de publicación. Sirve, por ejemplo, para listar las misiones abiertas por fecha. También hay índices para el historial de una billetera, los reportes por estado y la auditoría de una cuenta.</p>
+          <p>La pantalla de misiones permite otras búsquedas. En ambos casos siguientes, el índice se crearía sobre la tabla <code>mision</code> que alimenta la vista <code>v_mision_detalle</code>.</p>
+          <ul class="list-disc pl-6 space-y-3">
+            <li><strong>Misiones publicadas por un usuario.</strong> Al filtrar por <code>id_usuario</code>, el índice podría localizar sus misiones y recorrerlas desde la más reciente. Si dos tienen la misma fecha, el listado muestra primero la de mayor <code>id_mision</code>.</li>
+            <li><strong>Misiones abiertas en una zona.</strong> Si la búsqueda combina <code>id_zona</code> y <code>estado</code>, un índice que empiece por esos dos campos podría acotar el recorrido a esa combinación y devolver las misiones en el orden de la pantalla.</li>
+          </ul>
+        </div>
+        <CodeBlock label="MySQL · índices propuestos para esas dos búsquedas" code={`CREATE INDEX ix_mision_usuario_recientes
+ON mision (id_usuario, fecha_publicacion DESC, id_mision DESC);
+
+CREATE INDEX ix_mision_zona_estado_recientes
+ON mision (id_zona, estado, fecha_publicacion DESC, id_mision DESC);`} />
+        <p class="text-site-text-muted leading-relaxed max-w-3xl my-5">Para decidir si vale la pena conservarlos, probaría cada índice por separado con datos representativos. Compararía el plan de la consulta real con <code>EXPLAIN ANALYZE</code> antes y después de crearlo, revisando cuántas filas lee MySQL, si necesita ordenarlas y cuánto tarda. Cada índice también ocupa espacio y añade trabajo al escribir una misión.</p>
+        <p class="text-sm text-site-muted">Fuentes de BountyLine · <a class="underline" href="https://github.com/gabGABY006/BountyLine/blob/a3c7341098e72c6fb63fc4918bc35f373247aacd/bd/mysql/01_creacion.sql">Esquema e índices existentes</a> · <a class="underline" href="https://github.com/gabGABY006/BountyLine/blob/a3c7341098e72c6fb63fc4918bc35f373247aacd/back/src/main/java/co/edu/unbosque/bountyline/repository/MisionRepository.java">Consulta de misiones del backend</a></p>
+      </section>
+
+      <section class="mb-16">
+        <SectionHeading id="datos-mongodb" eyebrow="Diseño de datos · 05" title="Qué guardamos en MongoDB y por qué" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl">
+          <p><strong>Publicaciones del muro (<code>publicaciones</code>).</strong> Cada documento reúne el texto, las etiquetas, los comentarios y las reacciones de una publicación. Como esos datos se muestran juntos en el muro, se puede recuperar la conversación al leer la publicación.</p>
+          <p><strong>Chat de la misión (<code>mensajes_chat</code>).</strong> Guardamos un documento por mensaje, con la misión, el emisor, el texto, la fecha y la marca de lectura. Así, una conversación larga puede crecer sin acumular todo el historial en un solo documento. El índice por misión y fecha permite leer los mensajes en orden.</p>
+          <p><strong>Registro de uso (<code>bitacora_actividad</code>).</strong> Cada evento comparte un tipo, una cuenta y una fecha, pero los detalles varían. Una búsqueda puede guardar los filtros y la cantidad de resultados, mientras que una visita a una misión guarda su identificador. El documento admite los campos propios de cada evento y el validador exige los comunes.</p>
+          <p>Las colecciones se relacionan con MySQL mediante identificadores como <code>id_cuenta</code> e <code>id_mision</code>. Las cuentas, misiones, billeteras y movimientos permanecen en MySQL, donde el pago de una recompensa y la actualización de saldos deben confirmarse juntos en una transacción.</p>
+          <p class="text-sm text-site-muted"><a class="underline" href="https://github.com/gabGABY006/BountyLine/blob/a3c7341098e72c6fb63fc4918bc35f373247aacd/bd/mongodb/01_colecciones.js">Ver las tres colecciones, sus validadores y sus índices en BountyLine</a></p>
+        </div>
       </section>
 
       <a
