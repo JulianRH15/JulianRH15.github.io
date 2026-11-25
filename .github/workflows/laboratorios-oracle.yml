@@ -1,0 +1,50 @@
+name: Comprobar prácticas de Oracle
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'bases-de-datos-2/**'
+      - '.github/workflows/laboratorios-oracle.yml'
+permissions:
+  contents: read
+jobs:
+  oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Iniciar una base temporal
+        run: |
+          docker run -d --name practica -e ORACLE_RANDOM_PASSWORD=yes gvenzl/oracle-free:23-slim-faststart
+          for intento in {1..90}; do
+            if docker exec practica healthcheck.sh >/dev/null 2>&1; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Ejecutar las prácticas y comprobar la salida
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker cp bases-de-datos-2 practica:/tmp/practicas
+          docker exec -i practica sqlplus -s '/ as sysdba' <<'SQL' | tee resultados.txt
+          WHENEVER SQLERROR EXIT FAILURE
+          WHENEVER OSERROR EXIT FAILURE
+          ALTER SESSION SET CONTAINER=FREEPDB1;
+          CREATE USER practica NO AUTHENTICATION;
+          ALTER USER practica QUOTA 5M ON users;
+          ALTER SESSION SET CURRENT_SCHEMA=practica;
+          SET PAGESIZE 100 LINESIZE 120 SERVEROUTPUT ON
+          @/tmp/practicas/laboratorios/01-acumulados.sql
+          @/tmp/practicas/laboratorios/02-reserva-inventario.sql
+          CREATE TABLE producto (codigo VARCHAR2(20) PRIMARY KEY, precio_unitario NUMBER(10,2));
+          INSERT INTO producto VALUES ('HM-0001', 45000);
+          @/tmp/practicas/talleres/ferreteria/4-1-precio-producto.sql
+          EXIT
+          SQL
+          grep -Eq '^ *101 +17000 +17000 +34000 *$' resultados.txt
+          grep -Eq '^ *102 +17000 +34000 +34000 *$' resultados.txt
+          grep -Eq '^ *100 +24000 +58000 +58000 *$' resultados.txt
+          grep -F 'Pedido=6 codigo=0 stock=0' resultados.txt
+          grep -F 'HM-0001 -> 45000' resultados.txt
+          grep -F 'XX-9999 -> -1' resultados.txt
+          grep -F 'hm-0001 -> -1' resultados.txt
