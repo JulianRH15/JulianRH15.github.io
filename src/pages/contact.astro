@@ -9,8 +9,10 @@ import { icons } from "@/lib/icons";
 
 const contactMethods = contactData.contactMethods.map((m) => ({
   ...m,
-  value: m.iconKey === "phone" ? siteData.phoneDisplay : siteData.email,
-  href: m.iconKey === "phone" ? `tel:${siteData.phone}` : `mailto:${siteData.email}`,
+  ...({
+    envelope: { value: siteData.email, href: `mailto:${siteData.email}` },
+    phone: { value: siteData.phoneDisplay, href: `tel:${siteData.phone}` },
+  } as Record<string, { value: string; href: string }>)[m.iconKey],
 }));
 
 const schema = {
@@ -51,8 +53,9 @@ const schema = {
           </p>
 
           <div class="space-y-4 mb-10">
-            {contactMethods.map((method) => (
-              <a
+            {contactMethods.map((method) => {
+              const Tag = method.href ? "a" : "div";
+              return <Tag
                 href={method.href}
                 class="flex items-center gap-4 p-4 rounded-xl border border-site-border/60 bg-site-surface/30 hover:border-electric-blue/30 transition-colors group"
               >
@@ -61,12 +64,12 @@ const schema = {
                 </div>
                 <div class="flex-1">
                   <p class="text-xs text-site-muted font-mono uppercase tracking-wider">{method.label}</p>
-                  <p class="text-white font-semibold mt-0.5 group-hover:text-electric-cyan transition-colors">{method.value}</p>
+                  {method.value && <p class="text-white font-semibold mt-0.5 group-hover:text-electric-cyan transition-colors">{method.value}</p>}
                   <p class="text-site-muted text-xs mt-0.5">{method.note}</p>
                 </div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-site-muted group-hover:text-electric-cyan transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" set:html={icons['arrow-right']} />
-              </a>
-            ))}
+                {method.href && <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-site-muted group-hover:text-electric-cyan transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" set:html={icons['arrow-right']} />}
+              </Tag>;
+            })}
           </div>
 
           <!-- Free offer callout — populated at page load from contact-ctas.json -->
