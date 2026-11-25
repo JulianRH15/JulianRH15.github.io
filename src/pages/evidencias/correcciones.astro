@@ -141,7 +141,8 @@ SELECT SUM(monto) FROM bountyline.movimiento WHERE tipo = 'PAGO';
           lógica del negocio esté en un solo lado y que la propuesta de ETL
           necesitaba explicarse mejor. Aquí va cada una con lo que significa y
           cómo se arregla. También reviso qué índices probaría en MySQL y por
-          qué guardamos el contenido social en MongoDB.
+          qué guardamos el contenido social en MongoDB. Al final explico cómo
+          podría crecer BountyLine en cinco años.
         </p>
       </div>
 
@@ -151,7 +152,8 @@ SELECT SUM(monto) FROM bountyline.movimiento WHERE tipo = 'PAGO';
           { id: "logica", n: "02", t: "Toda la lógica en un solo lado" },
           { id: "etl", n: "03", t: "La propuesta de ETL" },
           { id: "indices-mysql", n: "04", t: "Índices que probaría en MySQL" },
-          { id: "datos-mongodb", n: "05", t: "Qué guardamos en MongoDB y por qué" }
+          { id: "datos-mongodb", n: "05", t: "Qué guardamos en MongoDB y por qué" },
+          { id: "bountyline-en-cinco-anos", n: "06", t: "BountyLine en cinco años" }
         ].map((c) => (
           <a
             href={`#${c.id}`}
@@ -483,6 +485,24 @@ ON mision (id_zona, estado, fecha_publicacion DESC, id_mision DESC);`} />
           <p>Las colecciones se relacionan con MySQL mediante identificadores como <code>id_cuenta</code> e <code>id_mision</code>. Las cuentas, misiones, billeteras y movimientos permanecen en MySQL, donde el pago de una recompensa y la actualización de saldos deben confirmarse juntos en una transacción.</p>
           <p class="text-sm text-site-muted"><a class="underline" href="https://github.com/gabGABY006/BountyLine/blob/a3c7341098e72c6fb63fc4918bc35f373247aacd/bd/mongodb/01_colecciones.js">Ver las tres colecciones, sus validadores y sus índices en BountyLine</a></p>
         </div>
+      </section>
+
+      <section class="mb-16">
+        <SectionHeading id="bountyline-en-cinco-anos" eyebrow="Proyección · 06" title="¿Cómo se vería BountyLine en cinco años?" />
+        <div class="space-y-5 text-site-text-muted leading-relaxed max-w-3xl mb-8">
+          <p>Si BountyLine pasara de un proyecto de clase a una comunidad activa, un usuario podría abrir una misión, recorrer sus mensajes más recientes y consultar el pago al cerrarla. Aunque hubiera cinco años de historial, la aplicación cargaría primero los mensajes recientes y recuperaría los anteriores por páginas. El saldo debería reflejar el pago apenas se confirme, incluso en una hora de mucho tráfico.</p>
+          <p><strong>Escalar verticalmente</strong> sería darle más capacidad a un servidor existente. Por ejemplo, si MySQL leyera del disco continuamente porque sus índices de uso frecuente ya no caben en memoria, probaría aumentar la RAM. Es un cambio sencillo de operar, aunque tiene un límite físico y una sola máquina sigue siendo un punto de fallo.</p>
+          <p><strong>Escalar horizontalmente</strong> sería repartir trabajo entre varios servidores. Si muchas personas abrieran la aplicación al mismo tiempo y una instancia de la API agotara su CPU, un balanceador podría distribuir las solicitudes entre varias instancias de Spring Boot. Esto exige coordinar más equipos y comprobar que las bases de datos puedan atender las conexiones adicionales.</p>
+        </div>
+        <h3 class="font-display font-bold text-xl text-white mb-3">Qué cambiaría en cada sistema</h3>
+        <ul class="list-disc pl-6 space-y-4 text-site-text-muted leading-relaxed max-w-3xl mb-6">
+          <li><strong>Angular.</strong> Distribuiría los archivos de la interfaz mediante una red de entrega de contenido (CDN). El navegador podría reutilizar los archivos de la misma versión, mientras los mensajes y saldos seguirían llegando desde la API.</li>
+          <li><strong>Spring Boot.</strong> Para que cualquier instancia pudiera atender la siguiente petición de un usuario, todas validarían su token con la misma configuración y guardarían el estado compartido en las bases de datos.</li>
+          <li><strong>MySQL.</strong> Si las consultas históricas compitieran con los pagos, enviaría a réplicas de lectura los informes que toleren un pequeño retraso. El pago, la actualización de la billetera y la consulta inmediata del saldo seguirían en el servidor principal. Las réplicas aliviarían las lecturas, pero la capacidad de escritura aún dependería del principal.</li>
+          <li><strong>MongoDB.</strong> El chat y la bitácora sumarían documentos con cada mensaje y evento. Usaría un conjunto de réplicas para mantener el servicio ante la caída de un nodo. Si el volumen de escrituras o de datos superara la capacidad de un servidor, evaluaría dividir la colección más exigente entre varios servidores mediante <em>sharding</em>. Para el chat probaría una clave basada en la misión y comprobaría que las conversaciones más activas no concentren la carga en un solo nodo.</li>
+        </ul>
+        <p class="text-site-text-muted leading-relaxed max-w-3xl mb-5">La decisión dependería de mediciones. En una prueba con usuarios simultáneos mediría cuánto tarda en abrirse un chat, cuánto tarda en confirmarse un pago y dónde se acumula la espera. Si la demora viene de una consulta que recorre demasiadas filas, probaría primero el índice correspondiente. Si persiste con la CPU, la memoria o el disco saturados, ampliaría esa capa y repetiría la misma prueba.</p>
+        <p class="text-sm text-site-muted">Documentación técnica · <a class="underline" href="https://dev.mysql.com/doc/refman/8.4/en/replication-solutions-scaleout.html">Réplicas de lectura en MySQL</a> · <a class="underline" href="https://www.mongodb.com/docs/manual/sharding/">Distribución de colecciones en MongoDB</a></p>
       </section>
 
       <a
