@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "title": "Elite Sports",
+    "company": "Proyecto de Bases de Datos I",
+    "category": "Streaming deportivo",
+    "description": "Plataforma de streaming deportivo donde cada usuario puede crear perfiles, guardar contenido en favoritos y elegir un plan. El sistema registra los pagos y genera las facturas de la suscripción.",
+    "tags": ["Frontend · JSF, PrimeFaces y Bootstrap", "Backend · Java y Spring Boot", "Base de datos · MySQL"],
+    "icon": "circle-stack",
+    "featuredImage": "/images/projects/elite-sports.jpg",
+    "backgroundImage": "/images/projects/elite-sports.jpg",
+    "link": "https://github.com/JulianRH15/PROYECTO-BASES-DE-DATOS-1-ELITESPORTS"
+  },
+  {
+    "title": "SportsHub",
+    "company": "Mundial 2026 Hub",
+    "category": "Fútbol",
+    "description": "Aplicación para seguir el Mundial de 2026. Los aficionados pueden consultar la agenda de partidos, pronosticar resultados en quinielas de grupo e intercambiar láminas para completar su álbum digital.",
+    "tags": ["Frontend · React, TypeScript y Tailwind CSS", "Backend · Java y Spring Boot", "Base de datos · MySQL"],
+    "icon": "calendar-days",
+    "featuredImage": "/images/projects/sportshub.jpg",
+    "backgroundImage": "/images/projects/sportshub.jpg",
+    "link": "https://github.com/JulianRH15/SPORTS-HUB"
+  }
+]
