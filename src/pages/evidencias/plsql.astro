@@ -157,6 +157,19 @@ const referencias = [
         </div>
       </section>
 
+      <section class="mb-16">
+        <SectionHeading id="ferreteria-4-1" eyebrow="Mi aporte al taller grupal · Punto 4.1" title="Consultar el precio de un producto por código" />
+        <div class="space-y-4 text-site-text-muted leading-relaxed max-w-3xl">
+          <p>En el inventario de la ferretería, la función <code>FN_PRECIO_PRODUCTO</code> recibe el código de un artículo. La solución usa <code>SELECT INTO</code> porque espera un único precio. La variable toma su tipo de <code>PRODUCTO.precio_unitario%TYPE</code>, así que sigue la definición de la columna.</p>
+          <CodeBlock label="Fragmento del punto 4.1" code={`SELECT precio_unitario INTO v_precio
+FROM producto WHERE codigo = p_codigo;
+RETURN v_precio;`} />
+          <p>Para reproducir las pruebas del taller se cargó el producto <code>HM-0001</code> con precio 45 000 en una tabla de prueba. La función devolvió 45 000 al consultar ese código, −1 para <code>XX-9999</code> y −1 para <code>hm-0001</code>. Esa última llamada comprueba que, con la comparación utilizada, cambiar las mayúsculas cambia el resultado.</p>
+          <p>El detalle importante está en la excepción: <code>SELECT INTO</code> interrumpe el bloque si el código no existe. La función captura <code>NO_DATA_FOUND</code> y devuelve −1. Por eso quien la llama debe comprobar el valor antes de usarlo para calcular el total de una venta.</p>
+          <p><a class="underline" href="https://github.com/JulianRH15/JulianRH15.github.io/blob/main/bases-de-datos-2/talleres/ferreteria/4-1-precio-producto.sql">Ver la función entregada y sus tres pruebas</a> · <a class="underline" href={withBase("/evidencias/laboratorios/#reserva-inventario")}>Ver la práctica individual de reservas</a></p>
+        </div>
+      </section>
+
       <!-- Conceptos -->
       <section class="mb-16">
         <SectionHeading eyebrow="Conceptos" title="Lo importante de PL/SQL" />

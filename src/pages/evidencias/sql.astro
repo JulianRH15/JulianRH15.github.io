@@ -49,13 +49,13 @@ SELECT *
 
 const ventana = `
 SELECT last_name, salary,
-       SUM(salary) OVER (ORDER BY salary
+       SUM(salary) OVER (ORDER BY salary, employee_id
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS acum_rows,
        SUM(salary) OVER (ORDER BY salary
             RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS acum_range
   FROM employees
  WHERE department_id = 90
- ORDER BY salary;
+ ORDER BY salary, employee_id;
 `;
 
 const ddl = `
@@ -177,8 +177,10 @@ const referencias = [
               Con ROWS el acumulado sube de fila en fila, así que el primero
               de los dos muestra un valor y el segundo otro. Con RANGE los dos
               son pares en el ORDER BY y reciben el mismo acumulado, que ya
-              incluye a ambos.
+              incluye a ambos. El identificador desempata solo en la ventana
+              por filas para que el orden sea reproducible.
             </p>
+            <a class="inline-block mt-4 underline" href={withBase("/evidencias/laboratorios/#acumulados")}>Ver la prueba individual, las tres filas resultantes y el script completo</a>
           </div>
         </div>
       </section>

@@ -34,6 +34,7 @@ jobs:
           ALTER USER practica QUOTA 5M ON users;
           ALTER SESSION SET CURRENT_SCHEMA=practica;
           SET PAGESIZE 100 LINESIZE 120 SERVEROUTPUT ON
+          SET TAB OFF
           @/tmp/practicas/laboratorios/01-acumulados.sql
           @/tmp/practicas/laboratorios/02-reserva-inventario.sql
           CREATE TABLE producto (codigo VARCHAR2(20) PRIMARY KEY, precio_unitario NUMBER(10,2));
