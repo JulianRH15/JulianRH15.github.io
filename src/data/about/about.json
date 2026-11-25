@@ -100,7 +100,17 @@
   "capabilitiesShowcase": {
     "eyebrow": "Mi formación",
     "heading": "Lo que estoy construyendo.",
-    "subheading": "Un espacio para mostrar proyectos, conocimientos y evidencias desarrolladas durante mi formación profesional."
+    "subheading": "Dos ideas que quiero desarrollar para simplificar tareas que hoy se hacen a mano.",
+    "ideas": [
+      {
+        "title": "Conciliación bancaria automática",
+        "description": "La plataforma compararía los movimientos del extracto bancario con los registros contables. Identificaría las coincidencias y señalaría las diferencias para que la persona encargada pueda revisar solo los movimientos pendientes."
+      },
+      {
+        "title": "Cobro mensual de arriendos por WhatsApp",
+        "description": "La plataforma sumaría el arriendo y los servicios que le corresponden a cada inquilino. Cada mes le enviaría por WhatsApp un cobro con el valor del arriendo, el detalle de los servicios y el total a pagar."
+      }
+    ]
   },
 
   "techStackHeading": "Tecnologías y áreas de aprendizaje",

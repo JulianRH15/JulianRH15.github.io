@@ -129,7 +129,7 @@ for (let i = shuffled.length - 1; i > 0; i--) {
   </div>
 
   <!-- ═══ Capabilities carousel — full bleed ═════════════════════════════ -->
-  <section class="py-16" style="background: linear-gradient(180deg, transparent 0%, rgb(var(--bg-elevated-ch) / 0.35) 50%, transparent 100%);">
+  <section id="lo-que-estoy-construyendo" class="py-16" style="background: linear-gradient(180deg, transparent 0%, rgb(var(--bg-elevated-ch) / 0.35) 50%, transparent 100%);">
 
     <!-- Heading -->
     <div class="px-6 lg:px-12 max-w-5xl mx-auto mb-10">
@@ -141,6 +141,14 @@ for (let i = shuffled.length - 1; i > 0; i--) {
         {aboutData.capabilitiesShowcase.heading}
       </h2>
       <p class="text-site-text-muted text-lg max-w-xl">{aboutData.capabilitiesShowcase.subheading}</p>
+      <div class="mt-8 grid gap-4 md:grid-cols-2">
+        {aboutData.capabilitiesShowcase.ideas.map((idea) => (
+          <article class="rounded-2xl border border-site-border bg-site-surface/30 p-6">
+            <h3 class="font-display font-bold text-xl text-white mb-3">{idea.title}</h3>
+            <p class="text-site-text-muted leading-relaxed">{idea.description}</p>
+          </article>
+        ))}
+      </div>
     </div>
 
     <!-- Marquee row — overflow:hidden wrapper, duplicated cards, CSS animation -->
