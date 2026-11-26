@@ -75,7 +75,7 @@ const projectsForScript = projectsData.map((p) => ({
       {projectsData.map((project, i) => (
         <div
           class={`project-card${project.backgroundImage ? ' has-bg' : ''}`}
-          data-category={project.category}
+          data-filters={(project.filters ?? [project.category]).join(' ')}
           data-index={i}
           style={`--enter-delay: ${(i % 3) * 0.06}s;`}
           role="button"
@@ -176,13 +176,17 @@ const projectsForScript = projectsData.map((p) => ({
 
     // ── Filter ────────────────────────────────────────────────
     const filterBtns = document.querySelectorAll<HTMLElement>('.project-filter-btn');
-    const cards = document.querySelectorAll<HTMLElement>('.project-card[data-category]');
+    const cards = document.querySelectorAll<HTMLElement>('.project-card[data-filters]');
     const empty = document.getElementById('projects-empty');
     let activeFilter = 'all';
 
+    function matchesFilter(card: HTMLElement, filter: string) {
+      return filter === 'all' || card.dataset.filters?.split(' ').includes(filter);
+    }
+
     document.querySelectorAll<HTMLElement>('.project-filter-count').forEach(el => {
-      const cat = el.dataset.count;
-      const n = cat === 'all' ? cards.length : [...cards].filter(c => c.dataset.category === cat).length;
+      const cat = el.dataset.count ?? 'all';
+      const n = [...cards].filter(card => matchesFilter(card, cat)).length;
       el.textContent = `${n}`;
     });
 
@@ -210,7 +214,7 @@ const projectsForScript = projectsData.map((p) => ({
       filterBtns.forEach(b => setFilterActive(b, b.dataset.filter === filter));
       let visible = 0;
       cards.forEach(card => {
-        const matches = filter === 'all' || card.dataset.category === filter;
+        const matches = matchesFilter(card, filter);
         card.classList.remove('project-enter');
         if (!matches) {
           card.classList.add('project-hidden');
