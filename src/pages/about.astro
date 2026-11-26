@@ -3,45 +3,16 @@ import Layout from "@/layouts/Layout.astro";
 import Footer from "@/components/Footer.astro";
 import { withBase } from "@/lib/assetPath";
 import aboutData from "@/data/about/about.json";
-import servicesData from "@/data/services/services.json";
 import { icons } from "@/lib/icons";
 
-const colorRgbMap: Record<string, string> = {
-  blue:    '96,165,250',
-  emerald: '52,211,153',
-  violet:  '167,139,250',
-  amber:   '251,191,36',
-};
-
-interface CapItem {
-  title: string;
-  description: string;
-  href: string;
-  serviceTitle: string;
-  colorRgb: string;
-}
-
-const capabilities: CapItem[] = (servicesData as any[]).flatMap((svc: any) => {
-  const match    = String(svc.theme?.accent ?? '').match(/text-(\w+)-/);
-  const colorKey = match?.[1] ?? 'blue';
-  const rgb      = colorRgbMap[colorKey] ?? '96,165,250';
-  const badge    = String(svc.intro?.badge ?? svc.title);
-  const href     = withBase(`/services/${svc.slug}`);
-  return (svc.capabilities as { title: string; description: string }[]).map((cap) => ({
-    title:        cap.title,
-    description:  cap.description,
-    href,
-    serviceTitle: badge,
-    colorRgb:     rgb,
-  }));
-});
-
-// Shuffle at build time
-const shuffled = [...capabilities];
-for (let i = shuffled.length - 1; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1));
-  [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-}
+const topics = [
+  { title: "DENSE_RANK()", engine: "SQL avanzado", lab: "sql-1", description: "Asigna el mismo puesto a salarios iguales. Si dos empleados ocupan el primer lugar, el siguiente queda segundo." },
+  { title: "$lookup", engine: "MongoDB", lab: "mongo-2", description: "Relaciona documentos de dos colecciones. En el laboratorio, cada película se combina con su comentario más reciente." },
+  { title: "ROLLUP", engine: "SQL avanzado", lab: "sql-4", description: "Calcula la nómina por región y país, el subtotal de cada región y el total general en una consulta." },
+  { title: "$facet", engine: "MongoDB", lab: "mongo-1", description: "Procesa las mismas películas en varias ramas para obtener estadísticas por década, géneros frecuentes y títulos mejor calificados." },
+  { title: "LAG()", engine: "SQL avanzado", lab: "sql-5", description: "Recupera el valor de la fila anterior. Al ordenar por año, permite comparar las contrataciones con las del año previo en el resultado." },
+  { title: "$setWindowFields", engine: "MongoDB", lab: "mongo-3", description: "Agrupa las películas por año para calcular su posición y el promedio anual sin perder el detalle de cada película." },
+];
 ---
 
 <Layout title={aboutData.pageTitle} description={aboutData.pageDescription}>
@@ -128,7 +99,7 @@ for (let i = shuffled.length - 1; i > 0; i--) {
     </div>
   </div>
 
-  <!-- ═══ Capabilities carousel — full bleed ═════════════════════════════ -->
+  <!-- Proyectos en desarrollo y prácticas de bases de datos -->
   <section id="lo-que-estoy-construyendo" class="py-16" style="background: linear-gradient(180deg, transparent 0%, rgb(var(--bg-elevated-ch) / 0.35) 50%, transparent 100%);">
 
     <!-- Heading -->
@@ -151,19 +122,15 @@ for (let i = shuffled.length - 1; i > 0; i--) {
       </div>
     </div>
 
-    <!-- Marquee row — overflow:hidden wrapper, duplicated cards, CSS animation -->
-    <div class="cap-outer">
-      <div class="cap-track">
-        {[...shuffled, ...shuffled].map((cap) => (
-          <a href={cap.href}
-             class="cap-card"
-             style={`border-top-color: rgb(${cap.colorRgb}); background: linear-gradient(160deg, rgba(${cap.colorRgb},0.09) 0%, rgba(${cap.colorRgb},0.02) 40%, transparent 65%), rgba(14,18,32,0.88);`}>
-            <span class="cap-badge" style={`color: rgb(${cap.colorRgb}); border-color: rgba(${cap.colorRgb},0.38);`}>
-              {cap.serviceTitle}
-            </span>
-            <h3 class="cap-title">{cap.title}</h3>
-            <p class="cap-desc">{cap.description}</p>
-            <span class="cap-cta" style={`color: rgb(${cap.colorRgb});`}>Explore service →</span>
+    <div class="px-6 lg:px-12 max-w-5xl mx-auto">
+      <h3 class="font-display font-bold text-2xl text-white mb-4">SQL avanzado y MongoDB en práctica</h3>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {topics.map((topic) => (
+          <a class="cap-card" href={withBase(`/evidencias/laboratorios/#${topic.lab}`)}>
+            <span class="cap-badge">{topic.engine}</span>
+            <h4 class="cap-title">{topic.title}</h4>
+            <p class="cap-desc">{topic.description}</p>
+            <span class="cap-cta">Ver laboratorio →</span>
           </a>
         ))}
       </div>
@@ -207,54 +174,17 @@ for (let i = shuffled.length - 1; i > 0; i--) {
 </Layout>
 
 <style>
-  /* Outer: full-bleed within the main content area (sidebar-aware) */
-  .cap-outer {
-    overflow: hidden;
-    width: 100vw; /* mobile: sidebar is off-screen */
-  }
-
-  /* lg: sidebar is w-60 = 15rem */
-  @media (min-width: 1024px) {
-    .cap-outer { width: calc(100vw - 15rem); }
-  }
-
-  /* xl: sidebar is w-64 = 16rem */
-  @media (min-width: 1280px) {
-    .cap-outer { width: calc(100vw - 16rem); }
-  }
-
-  /* collapsed sidebar = 4rem at any lg+ breakpoint */
-  @media (min-width: 1024px) {
-    :global(.sidebar-collapsed) .cap-outer { width: calc(100vw - 4rem); }
-  }
-
-  /* Track: inline-flex, animates -50% (content duplicated = seamless loop) */
-  .cap-track {
-    display: inline-flex;
-    gap: 16px;
-    padding: 8px 0;
-    animation: capScroll 55s linear infinite;
-  }
-  .cap-track:hover {
-    animation-play-state: paused;
-  }
-
-  @keyframes capScroll {
-    from { transform: translateX(0); }
-    to   { transform: translateX(-50%); }
-  }
-
-  /* Card */
   .cap-card {
     flex-shrink: 0;
     display: inline-flex;
     flex-direction: column;
     gap: 10px;
-    width: 260px;
+    background: var(--bg-surface);
+    color: var(--color-primary);
     white-space: normal;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-top-width: 3px;
+    border-top: 3px solid currentColor;
     padding: 20px 18px 16px;
     text-decoration: none;
     vertical-align: top;
@@ -284,7 +214,6 @@ for (let i = shuffled.length - 1; i > 0; i--) {
     font-weight: 700;
     font-size: 16px;
     color: #ffffff;
-    text-transform: uppercase;
     letter-spacing: 0.04em;
     line-height: 1.2;
   }
@@ -293,10 +222,6 @@ for (let i = shuffled.length - 1; i > 0; i--) {
     font-size: 12px;
     line-height: 1.6;
     color: rgba(185, 195, 215, 0.75);
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
     flex: 1;
   }
 
