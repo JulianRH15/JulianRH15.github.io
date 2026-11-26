@@ -5,7 +5,7 @@ import Hero from "@/components/Hero.astro";
 import MarketChart from "@/components/MarketChart.astro";
 import FeaturedSlider from "@/components/FeaturedSlider.astro";
 import Portal from "@/components/Portal.astro";
-import Services from "@/components/Services.astro";
+import { withBase } from "@/lib/assetPath";
 import TransactionDesk from "@/components/TransactionDesk.astro";
 import Projects from "@/components/Projects.astro";
 import QuickHelpForm from "@/components/QuickHelpForm.astro";
@@ -20,7 +20,10 @@ import Footer from "@/components/Footer.astro";
   <MarketChart />
   <FeaturedSlider />
   <Portal />
-  <Services />
+  <section class="px-6 lg:px-12 py-12 max-w-5xl mx-auto">
+    <h2 class="font-display font-bold text-3xl text-white mb-3">Quices</h2>
+    <a class="text-electric-cyan underline" href={withBase("/evidencias/quices/")}>Quiz 2 · Corrección de SQL avanzado en AeroAndes</a>
+  </section>
   <TransactionDesk />
   <Projects featuredOnly />
   <QuickHelpForm />

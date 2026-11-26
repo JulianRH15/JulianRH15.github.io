@@ -28,6 +28,11 @@
       "iconKey": "book",
       "children": [
         {
+          "label": "Quices",
+          "href": "/evidencias/quices",
+          "iconKey": "book"
+        },
+        {
           "label": "SQL",
           "href": "/evidencias/sql",
           "iconKey": "terminal"

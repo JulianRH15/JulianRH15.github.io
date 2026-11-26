@@ -1,0 +1,62 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Footer from "@/components/Footer.astro";
+import CodeBlock from "@/components/evidencias/CodeBlock.astro";
+import { withBase } from "@/lib/assetPath";
+import rutas from "../../../bases-de-datos-2/quices/aeroandes/1b-rutas.sql?raw";
+import ranking from "../../../bases-de-datos-2/quices/aeroandes/2a-ranking.sql?raw";
+import acumulado from "../../../bases-de-datos-2/quices/aeroandes/2b-acumulado.sql?raw";
+import caidas from "../../../bases-de-datos-2/quices/aeroandes/2c-caidas.sql?raw";
+---
+<Layout title="Quices | Bases de Datos 2" description="Corrección completa del Quiz 2 de AeroAndes sobre SQL avanzado en Oracle 19c.">
+  <article class="px-6 lg:px-12 py-16 max-w-5xl mx-auto space-y-10">
+    <a class="text-electric-cyan underline" href={withBase("/evidencias/")}>Volver a Evidencias</a>
+    <header>
+      <p class="font-mono text-sm text-site-muted">Bases de Datos 2 · Quices</p>
+      <h1 class="font-display text-4xl font-bold text-white my-3">Quiz 2 · SQL avanzado en AeroAndes</h1>
+      <p>Corrección para Oracle 19c. Una ruta es un par ordenado de aeropuertos. Las reservas confirmadas o voladas aportan su tarifa al ingreso y las anuladas aportan cero. En la pregunta 1 el período se define por la salida del vuelo, como en la consulta original. Para los ingresos mensuales de la pregunta 2 se usa la fecha de compra.</p>
+    </header>
+    <section>
+      <h2>1a. Diagnóstico de la consulta original</h2>
+      <p>El primer defecto impide ejecutar la consulta. Los demás describen qué resultados produciría después de corregir ese error de agrupación.</p>
+      <ol class="list-decimal pl-6 space-y-3">
+        <li><strong>SELECT y GROUP BY · Error de ejecución.</strong> La consulta agrupa por origen y destino, pero selecciona <code>v.num_vuelo</code>. Una ruta puede tener varios números de vuelo y Oracle devuelve ORA-00979. La solución es retirar el número de vuelo para conservar una fila por ruta.</li>
+        <li><strong>JOIN y agregados · Suma y conteo incorrectos.</strong> Oracle une las filas antes de agregarlas. Con dos reservas de 100 y 200 y tres incidencias en un vuelo, la unión genera seis filas: la suma da 900 y <code>COUNT(*)</code> da 6. Los valores buscados son 300 y un vuelo con incidencia. Incluso un vuelo sin incidencias puede aportar filas a <code>COUNT(*)</code> por el <code>LEFT JOIN</code>.</li>
+        <li><strong>WHERE sobre el estado · Ingreso inflado.</strong> Falta comprobar el estado de la reserva. Una tarifa anulada llega al grupo y se suma aunque esa reserva genere cero ingresos.</li>
+        <li><strong>WHERE con NOT IN · Exclusión incorrecta.</strong> La subconsulta devuelve identificadores de quienes refirieron a otro pasajero, pero también puede devolver <code>NULL</code>. Para un identificador sin coincidencia, la comparación queda como desconocida y el <code>WHERE</code> descarta la fila. Un <code>NOT EXISTS</code> correlacionado excluye únicamente a quien aparece como referente.</li>
+        <li><strong>WHERE con ROWNUM · Cinco filas antes de ordenar.</strong> El límite se aplica a las filas que alimentan la agrupación. Cuando se calcula el ingreso y se ordenan las rutas, ya se perdieron filas. El límite de cinco debe aplicarse al resultado ordenado.</li>
+      </ol>
+      <p>La expresión <code>RANK() OVER (ORDER BY SUM(r.tarifa) DESC)</code> sí es válida sobre los grupos. El problema del ranking original está en los datos que recibe.</p>
+    </section>
+    <section>
+      <h2>1b. Las cinco rutas con mayor ingreso</h2>
+      <p>Se suma la venta válida por vuelo y se obtiene un único identificador por vuelo con incidencia antes de unir ambos resultados. Así cada vuelo aporta su ingreso una vez y cuenta como máximo una vez. El filtro de pasajeros afecta al ingreso; el conteo operativo incluye los vuelos del período que registraron incidencias.</p>
+      <CodeBlock label="Top cinco por ingreso desde el 1 de enero de 2026" code={rutas} />
+    </section>
+    <section>
+      <h2>2a. Las tres primeras rutas de cada mes</h2>
+      <p>La primera CTE suma por mes y ruta. La segunda usa <code>ROW_NUMBER()</code> y desempata por el código de ruta en orden alfabético. Si dos rutas venden lo mismo, cada una recibe un puesto distinto. El filtro del puesto va en la consulta exterior porque Oracle evalúa el <code>WHERE</code> del bloque antes de calcular las funciones analíticas.</p>
+      <CodeBlock label="Ranking mensual de 2026" code={ranking} />
+    </section>
+    <section>
+      <h2>2b. Acumulado reserva por reserva</h2>
+      <p>Con <code>ORDER BY fecha_compra</code>, el marco predeterminado de la suma es <code>RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW</code>. Abarca todas las filas empatadas en la fecha actual. Si las primeras dos reservas de un origen se compran el mismo día por 100 y 40, ambas muestran 140.</p>
+      <p><code>ROWS</code> avanza una fila por vez. Como las fechas carecen de hora, se usa <code>id_reserva</code> para fijar el orden dentro del día. Si la reserva de 100 tiene el identificador menor, los acumulados son 100 y 140. Un <code>CASE</code> conserva cada reserva y suma cero para las anuladas.</p>
+      <CodeBlock label="Acumulado por aeropuerto de origen" code={acumulado} />
+    </section>
+    <section>
+      <h2>2c. Meses en que el ingreso cayó más del 30 %</h2>
+      <p>Se construye un calendario desde diciembre de 2025 para que enero de 2026 tenga un mes anterior comparable. Cada ruta recibe una fila por mes, incluso si vendió cero. Así <code>LAG</code> siempre retrocede un mes de calendario. La condición <code>anterior &gt; 0</code> excluye meses sin ventas previas y evita calcular porcentajes sobre cero.</p>
+      <CodeBlock label="Comparación con el mes inmediatamente anterior" code={caidas} />
+      <p>Con 100 de ingreso previo y 70 actuales, la caída es exactamente del 30 % y la fila queda fuera. Con 69 entra como −31 %. Si el ingreso pasa de 100 a cero, entra como −100 %.</p>
+      <p><code>GROUP BY</code> calcula el total de cada mes; para comparar ese total con otro mes hace falta relacionar dos filas. Sin funciones analíticas se podría unir la serie mensual consigo misma por ruta y por el mes anterior, usando <code>ADD_MONTHS</code>.</p>
+    </section>
+    <p><a class="underline" href="https://github.com/JulianRH15/JulianRH15.github.io/tree/main/bases-de-datos-2/quices/aeroandes">Scripts del quiz en GitHub</a> · <a class="underline" href="https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/Analytic-Functions.html">Funciones analíticas en Oracle 19c</a></p>
+  </article>
+  <Footer />
+</Layout>
+<style>
+  section { display: grid; gap: 1rem; min-width: 0; }
+  h2 { font-size: 1.5rem; font-weight: 700; color: var(--color-text); }
+  p, li { line-height: 1.7; }
+</style>
